@@ -1,0 +1,41 @@
+# ASCeS Configuration
+
+# Network Interface to capture from (ignored if pcap is provided)
+interface: "eth0"
+
+# BPF Filter for capture (e.g., "ip", "tcp port 80", "not arp")
+bpf_filter: "ip"
+
+# Time windows for aggregation (in seconds)
+windows: [5, 15, 60, 120]
+
+# Features to extract
+features_enabled:
+  - "packets_per_window"
+  - "bytes_per_window"
+  - "unique_src_ips"
+  - "unique_dst_ips"
+  - "unique_src_ports"
+  - "unique_dst_ports"
+  - "tcp_ratio"
+  - "udp_ratio"
+  - "icmp_ratio"
+  - "mean_packet_size"
+  - "std_packet_size"
+
+# Hurst estimation methods
+hurst_methods: ["rs", "dfa"]
+
+# Training duration in seconds (default 4 minutes)
+train_duration_seconds: 240
+
+# Anomaly detection threshold (Z-score)
+z_threshold: 3.0
+
+# Cooldown for alerts in seconds (anti-spam)
+cooldown_seconds: 30
+
+# Paths
+db_path: "data/asces.db"
+baselines_dir: "data/baselines"
+log_path: "logs/asces.log"

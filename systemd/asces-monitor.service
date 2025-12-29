@@ -1,0 +1,16 @@
+[Unit]
+Description=ASCeS - Adaptive Session Control System Monitor
+After=network.target
+
+[Service]
+Type=simple
+User=root
+# Adjust path to your poetry env or python executable
+ExecStart=/usr/bin/python3 -m asces.cli monitor
+WorkingDirectory=/opt/asces
+Restart=always
+RestartSec=5
+Environment=PYTHONUNBUFFERED=1
+
+[Install]
+WantedBy=multi-user.target

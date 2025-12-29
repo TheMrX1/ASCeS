@@ -1,0 +1,42 @@
+[tool.poetry]
+name = "asces"
+version = "0.1.0"
+description = "Adaptive Session Control System - Network Anomaly Detection"
+authors = ["ASCeS Team <security@example.com>"]
+readme = "README.md"
+packages = [{include = "asces"}]
+
+[tool.poetry.dependencies]
+python = "^3.11"
+typer = {extras = ["all"], version = "^0.9.0"}
+pydantic = "^2.5.0"
+pyyaml = "^6.0"
+scapy = "^2.5.0"
+numpy = "^1.26.0"
+pandas = "^2.1.0"
+fastapi = "^0.104.0"
+uvicorn = {extras = ["standard"], version = "^0.24.0"}
+jinja2 = "^3.1.0"
+sqlalchemy = "^2.0.0"
+aiofiles = "^23.2.0"
+python-multipart = "^0.0.6"
+
+[tool.poetry.group.dev.dependencies]
+pytest = "^7.4.0"
+ruff = "^0.1.0"
+mypy = "^1.7.0"
+types-pyyaml = "^6.0.0"
+httpx = "^0.25.0"
+
+[build-system]
+requires = ["poetry-core"]
+build-backend = "poetry.core.masonry.api"
+
+[tool.ruff]
+line-length = 100
+target-version = "py311"
+
+[tool.mypy]
+python_version = "3.11"
+strict = true
+ignore_missing_imports = true

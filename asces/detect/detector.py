@@ -1,0 +1,102 @@
+import logging
+import time
+from typing import Dict, Any, List
+from ..hurst import compute_hurst_rs, compute_hurst_dfa
+from ..features.aggregator import WindowAggregator
+from ..storage.repo import AlertRepo
+
+logger = logging.getLogger(__name__)
+
+class Detector:
+    def __init__(self, 
+                 aggregator: WindowAggregator, 
+                 baseline: Dict[str, Any], 
+                 alert_repo: AlertRepo,
+                 config: Any):
+        self.aggregator = aggregator
+        self.baseline = baseline
+        self.alert_repo = alert_repo
+        self.config = config
+        self.last_alert_time: Dict[str, float] = {} # Key: "window:feature:method"
+
+    def check_window(self, window_size: int, features: Dict[str, float]):
+        """
+        Called when a window closes. Calculates H for recent history and compares to baseline.
+        """
+        if str(window_size) not in self.baseline:
+            return
+
+        # We need the series history to compute current H
+        # Use the last N points (e.g., 64)
+        min_h_len = 64
+        
+        for feature_name in features.keys():
+            series = self.aggregator.get_series(window_size, feature_name)
+            if len(series) < min_h_len:
+                continue
+                
+            # Take the most recent chunk
+            recent_series = list(series)[-min_h_len:]
+            
+            # Check for each method
+            for method in self.config.hurst_methods:
+                # Get baseline stats
+                try:
+                    stats = self.baseline[str(window_size)][feature_name][method]
+                except (KeyError, TypeError):
+                    continue
+                    
+                if not stats:
+                    continue
+                    
+                # Compute current H
+                current_h = None
+                if method == "rs":
+                    current_h = compute_hurst_rs(recent_series)
+                elif method == "dfa":
+                    current_h = compute_hurst_dfa(recent_series)
+                    
+                if current_h is None:
+                    continue
+                    
+                # Calculate Z-score
+                mean_h = stats["mean"]
+                std_h = stats["std"]
+                if std_h < 0.001: std_h = 0.001 # Avoid div by zero
+                
+                z_score = (current_h - mean_h) / std_h
+                
+                if abs(z_score) >= self.config.z_threshold:
+                    self._trigger_alert(window_size, feature_name, method, current_h, mean_h, std_h, z_score)
+
+    def _trigger_alert(self, window, feature, method, h, mean, std, z):
+        key = f"{window}:{feature}:{method}"
+        now = time.time()
+        
+        # Cooldown check
+        if key in self.last_alert_time:
+            if now - self.last_alert_time[key] < self.config.cooldown_seconds:
+                return
+                
+        self.last_alert_time[key] = now
+        
+        level = "WARN"
+        if abs(z) > 4.5:
+            level = "CRIT"
+        elif abs(z) < 3.5:
+            level = "INFO"
+            
+        msg = f"Anomaly detected in {feature} (Window {window}s). H={h:.3f} (Baseline: {mean:.3f}±{std:.3f}), Z={z:.2f}"
+        logger.warning(msg)
+        
+        self.alert_repo.create_alert({
+            "level": level,
+            "window_size": window,
+            "feature": feature,
+            "hurst_method": method,
+            "current_h": h,
+            "baseline_mean": mean,
+            "baseline_std": std,
+            "z_score": z,
+            "message": msg
+        })
