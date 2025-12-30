@@ -29,7 +29,7 @@ class PcapCapture:
                 for pkt in pcap:
                     count += 1
                     if count % 1000 == 0:
-                        logger.info(f"Processed {count} packets...")
+                        logger.info(f"Processed {count} packets... (Time: {float(pkt.time):.4f})")
 
                     if realtime:
                         if first_ts is None:
