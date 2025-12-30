@@ -1,6 +1,6 @@
 import logging
 import numpy as np
-from typing import Dict, List
+from typing import Dict, List, Any
 from ..features.aggregator import WindowAggregator
 from ..hurst import compute_hurst_rs, compute_hurst_dfa
 

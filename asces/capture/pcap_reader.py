@@ -1,6 +1,6 @@
 import logging
 from scapy.all import rdpcap, PcapReader
-from typing import Callable
+from typing import Callable, Any
 import time
 
 logger = logging.getLogger(__name__)

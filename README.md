@@ -23,13 +23,19 @@ ASCeS is a specialized network monitoring and anomaly detection system designed 
    cd asces
    ```
 
-2. Install dependencies using Poetry (recommended):
+2. Create and activate a virtual environment:
+   ```bash
+   python3 -m venv venv
+   source venv/bin/activate
+   ```
+
+3. Install dependencies:
+   ```bash
+   pip install typer pydantic pyyaml scapy numpy pandas fastapi uvicorn jinja2 sqlalchemy aiofiles python-multipart
+   ```
+   Or using Poetry (recommended):
    ```bash
    poetry install
-   ```
-   Or using pip:
-   ```bash
-   pip install -r requirements.txt
    ```
 
 ## Usage
