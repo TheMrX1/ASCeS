@@ -112,7 +112,7 @@ class Trainer:
                     else:
                         # Fallback if we couldn't compute H (e.g. flat line)
                         feat_stats[method] = None
-                        print(f"DEBUG: Trainer produced None for {feature} {method} (Inputs: {len(vals)} chunks)")
+                        # print(f"DEBUG: Trainer produced None for {feature} {method} (Inputs: {len(vals)} chunks)")
                 
                 baseline[str(window_size)][feature] = feat_stats
                 
