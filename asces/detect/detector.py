@@ -24,6 +24,7 @@ class Detector:
         Called when a window closes. Calculates H for recent history and compares to baseline.
         """
         if str(window_size) not in self.baseline:
+            # logger.debug(f"DEBUG: Window {window_size} not in baseline keys: {list(self.baseline.keys())}")
             return
 
         # We need the series history to compute current H
@@ -33,6 +34,7 @@ class Detector:
         for feature_name in features.keys():
             series = self.aggregator.get_series(window_size, feature_name)
             if len(series) < min_h_len:
+                # logger.debug(f"DEBUG: Series too short for {feature_name}: {len(series)} < {min_h_len}")
                 continue
                 
             # Take the most recent chunk

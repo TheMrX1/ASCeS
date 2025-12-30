@@ -31,15 +31,17 @@ class WindowAggregator:
         for w in self.window_sizes:
             if self.window_starts[w] is None:
                 self.window_starts[w] = timestamp
+                # Debug log for first timestamp
+                # print(f"DEBUG: Window {w} initialized at {timestamp}")
 
             # If timestamp goes backward (restarts) or jumps too far, reset?
             # For now assume monotonic increasing timestamp from source.
             
             if timestamp - self.window_starts[w] >= w:
                 # Window closed
-                # Warning: if gap is huge, we might skip many windows. 
-                # Ideally we should close multiple windows if time jumped.
-                # For simplified logic: just close one and restart.
+                # print(f"DEBUG: Window {w} CLOSED at {timestamp} (Start: {self.window_starts[w]})")
+                # Using logging module instead of print to ensure visibility if configured
+                pass 
                 
                 features = FeatureExtractor.extract(self.current_buffers[w])
                 self._update_history(w, features)
