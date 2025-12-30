@@ -76,3 +76,29 @@ sudo setcap cap_net_raw,cap_net_admin+eip $(readlink -f $(which python3))
 
 ## Disclaimer
 ASCeS is a defensive tool for monitoring and analysis. It does not include offensive capabilities.
+
+## Test Verification
+
+To verify the system functionality using synthetic traffic, follow these steps:
+
+1. **Generate Synthetic Traffic**:
+   ```bash
+   # Generate "normal" traffic (1200 seconds)
+   python3 tools/traffic_gen.py normal 1200
+   
+   # Generate "anomalous" traffic (600 seconds)
+   python3 tools/traffic_gen.py anomaly 600
+   ```
+
+2. **Train Baseline**:
+   Clear old data and train on the normal traffic.
+   ```bash
+   rm data/baselines/*.json data/asces.db
+   python3 -m asces.cli train --pcap normal.pcap
+   ```
+
+3. **Monitor for Anomalies**:
+   Run the monitor on the anomalous traffic. You should see `WARNING` or `CRITICAL` alerts in the console.
+   ```bash
+   python3 -m asces.cli monitor --pcap anomaly.pcap
+   ```
