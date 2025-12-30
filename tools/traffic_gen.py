@@ -17,11 +17,19 @@ def generate_normal_traffic(filename="normal.pcap", duration=300):
         # Random sizes (White Noise)
         payload_size = random.randint(64, 1500)
         
-        # Interval ~0.05s
-        pkt_time = start_time + (i * 0.05) + random.uniform(-0.01, 0.01)
+        # Interval ~0.05s but with more variance (Poisson-like)
+        # Use exponential distribution for intervals to mimic real traffic
+        interval = random.expovariate(20.0) # Avg rate 20
+        start_time += interval
+        pkt_time = start_time
+        
+        # Randomize IPs/Ports to ensure Unique* features have variance
+        # Pick from a small pool to keep "normal" pattern stable but not constant
+        src_ip = f"192.168.1.{random.randint(10, 15)}"
+        src_port = random.choice([12345, 12346, 12347, 443, 8080])
         
         # Explicit MACs to avoid ARP lookups/warnings
-        pkt = Ether(src="00:11:22:33:44:55", dst="ff:ff:ff:ff:ff:ff") / IP(src="192.168.1.10", dst="192.168.1.20") / TCP(sport=12345, dport=80) / ("X" * payload_size)
+        pkt = Ether(src="00:11:22:33:44:55", dst="ff:ff:ff:ff:ff:ff") / IP(src=src_ip, dst="192.168.1.20") / TCP(sport=src_port, dport=80) / ("X" * payload_size)
         pkt.time = pkt_time
         packets.append(pkt)
         
