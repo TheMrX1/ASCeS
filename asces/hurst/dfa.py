@@ -16,7 +16,7 @@ def compute_hurst_dfa(series: list[float] | np.ndarray, order: int = 1) -> float
     """
     series = np.array(series)
     N = len(series)
-    if N < 20:
+    if N < 4:
         return None
         
     if np.std(series) == 0:

@@ -14,7 +14,7 @@ def compute_hurst_rs(series: list[float] | np.ndarray) -> float | None:
         float: The estimated Hurst exponent, or None if calculation fails/insufficient data.
     """
     series = np.array(series)
-    if len(series) < 20:  # Minimal length check
+    if len(series) < 4:  # Minimal length check
         return None
     
     # Ensure no zero variance in the whole series to avoid immediate issues
