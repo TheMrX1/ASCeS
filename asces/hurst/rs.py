@@ -28,7 +28,7 @@ def compute_hurst_rs(series: list[float] | np.ndarray) -> float | None:
     # Sub-series lengths (powers of 2 or logarithmic spacing)
     # We use a range of divisors
     N = len(series)
-    min_chunk = 8
+    min_chunk = 4
     max_chunk = N // 2
     
     if max_chunk < min_chunk:

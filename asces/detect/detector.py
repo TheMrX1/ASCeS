@@ -28,7 +28,7 @@ class Detector:
 
         # We need the series history to compute current H
         # Use the last N points (e.g., 64)
-        min_h_len = 16
+        min_h_len = 8
         
         for feature_name in features.keys():
             series = self.aggregator.get_series(window_size, feature_name)
