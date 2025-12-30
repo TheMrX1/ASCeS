@@ -25,7 +25,7 @@ class Detector:
         Called when a window closes. Calculates H for recent history and compares to baseline.
         """
         if str(window_size) not in self.baseline:
-            print(f"DEBUG: Window {window_size} not in baseline keys: {list(self.baseline.keys())}")
+            # print(f"DEBUG: Window {window_size} not in baseline keys: {list(self.baseline.keys())}")
             return
 
         # We need the series history to compute current H
@@ -49,11 +49,11 @@ class Detector:
                 try:
                     stats = self.baseline[str(window_size)][feature_name][method]
                 except (KeyError, TypeError):
-                    print(f"DEBUG: No stats keys for {feature_name} {method}")
+                    # print(f"DEBUG: No stats keys for {feature_name} {method}")
                     continue
                     
                 if not stats:
-                    print(f"DEBUG: Stats is None/Empty for {feature_name} {method}")
+                    # print(f"DEBUG: Stats is None/Empty for {feature_name} {method}")
                     continue
                     
                 # Compute current H
@@ -64,10 +64,10 @@ class Detector:
                     current_h = compute_hurst_dfa(recent_series)
                     
                 if current_h is None:
-                    print(f"DEBUG: H is None for {feature_name} {method} (Std={np.std(recent_series):.4f})")
+                    # print(f"DEBUG: H is None for {feature_name} {method} (Std={np.std(recent_series):.4f})")
                     continue
                 
-                print(f"DEBUG: Computed H={current_h:.4f} for {feature_name}")
+                # print(f"DEBUG: Computed H={current_h:.4f} for {feature_name}")
                     
                 # Calculate Z-score
                 mean_h = stats["mean"]

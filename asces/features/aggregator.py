@@ -39,8 +39,7 @@ class WindowAggregator:
             
             if timestamp - self.window_starts[w] >= w:
                 # Window closed
-                # FORCE LOGGING
-                print(f"DEBUG: Window {w} CLOSED at {timestamp:.4f} (Start: {self.window_starts[w]:.4f})")
+                # Window closed
                 
                 features = FeatureExtractor.extract(self.current_buffers[w])
                 self._update_history(w, features)

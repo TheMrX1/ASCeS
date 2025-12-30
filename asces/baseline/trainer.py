@@ -73,8 +73,7 @@ class Trainer:
                 # Better approach: Bootstrapping or overlapping windows.
                 
                 # Let's use overlapping windows of size min_h_len with step 10.
-                # print(f"DEBUG: Trainer processing {feature} window={window_size} len={series_len}")
-
+                
                 # Use overlapping windows of reasonable size for H calculation
                 h_window_size = 64
                 if series_len < h_window_size:
@@ -89,15 +88,11 @@ class Trainer:
                         h = compute_hurst_rs(sub_series)
                         if h is not None: 
                             h_values["rs"].append(h)
-                        # else:
-                            # print(f"DEBUG: RS failed for {feature} chunk len {len(sub_series)}")
                         
                     if "dfa" in self.hurst_methods:
                         h = compute_hurst_dfa(sub_series)
                         if h is not None: 
                             h_values["dfa"].append(h)
-                        # else:
-                            # print(f"DEBUG: DFA failed for {feature} chunk len {len(sub_series)}")
                 
                 # Aggregate
                 feat_stats = {}
@@ -108,11 +103,9 @@ class Trainer:
                             "std": float(np.std(vals)) if len(vals) > 1 else 0.05,
                             "count": len(vals)
                         }
-                        # print(f"DEBUG: Trainer computed {feature} {method}: {feat_stats[method]}")
                     else:
                         # Fallback if we couldn't compute H (e.g. flat line)
                         feat_stats[method] = None
-                        # print(f"DEBUG: Trainer produced None for {feature} {method} (Inputs: {len(vals)} chunks)")
                 
                 baseline[str(window_size)][feature] = feat_stats
                 
