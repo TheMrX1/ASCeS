@@ -68,6 +68,9 @@ class Detector:
                 
                 if abs(z_score) >= self.config.z_threshold:
                     self._trigger_alert(window_size, feature_name, method, current_h, mean_h, std_h, z_score)
+                else:
+                    # Debug log to see values even if no alert
+                    logger.info(f"CHECK: {feature_name} (W{window_size}) H={current_h:.3f} Avg={mean_h:.3f} Z={z_score:.2f}")
 
     def _trigger_alert(self, window, feature, method, h, mean, std, z):
         key = f"{window}:{feature}:{method}"
