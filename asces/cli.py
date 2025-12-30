@@ -108,7 +108,8 @@ def monitor(
     
     if pcap:
         capture = PcapCapture(pcap)
-        capture.process(lambda p: packet_callback(p, float(p.time)), realtime=True)
+        # Process as fast as possible for file analysis
+        capture.process(lambda p: packet_callback(p, float(p.time)), realtime=False)
     else:
         interface = iface or config.interface
         capture = LiveCapture(interface, config.bpf_filter)

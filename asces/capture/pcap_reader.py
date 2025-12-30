@@ -25,7 +25,12 @@ class PcapCapture:
                 first_ts = None
                 start_time = time.time()
                 
+                count = 0
                 for pkt in pcap:
+                    count += 1
+                    if count % 1000 == 0:
+                        logger.info(f"Processed {count} packets...")
+
                     if realtime:
                         if first_ts is None:
                             first_ts = float(pkt.time)
