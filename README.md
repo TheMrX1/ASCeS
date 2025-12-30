@@ -19,7 +19,7 @@ ASCeS is a specialized network monitoring and anomaly detection system designed 
 ### Setup
 1. Clone the repository:
    ```bash
-   git clone https://github.com/your-org/asces.git
+   git clone https://github.com/TheMrX1/ASCeS.git
    cd asces
    ```
 

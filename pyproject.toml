@@ -4,6 +4,7 @@ version = "0.1.0"
 description = "Adaptive Session Control System - Network Anomaly Detection"
 authors = ["ASCeS Team <security@example.com>"]
 readme = "README.md"
+repository = "https://github.com/TheMrX1/ASCeS"
 packages = [{include = "asces"}]
 
 [tool.poetry.dependencies]
