@@ -3,12 +3,13 @@ import random
 import sys
 from scapy.all import wrpcap, IP, TCP, UDP, Ether
 
-def generate_normal_traffic(filename="normal.pcap", count=2000):
+def generate_normal_traffic(filename="normal.pcap", duration=300):
     """
-    Generates 'normal' traffic: random packet sizes, random intervals (white noise-like).
-    Hurst exponent should be close to 0.5.
+    Generates 'normal' traffic for a specific duration to ensure sufficient window data.
+    Rate: ~20 packets/sec
     """
-    print(f"Generating {count} normal packets to {filename}...")
+    count = duration * 20
+    print(f"Generating ~{count} normal packets to {filename} ({duration}s)...")
     packets = []
     start_time = time.time()
     
@@ -16,7 +17,7 @@ def generate_normal_traffic(filename="normal.pcap", count=2000):
         # Random sizes (White Noise)
         payload_size = random.randint(64, 1500)
         
-        # Random intervals
+        # Interval ~0.05s
         pkt_time = start_time + (i * 0.05) + random.uniform(-0.01, 0.01)
         
         pkt = Ether() / IP(src="192.168.1.10", dst="192.168.1.20") / TCP(sport=12345, dport=80) / ("X" * payload_size)
@@ -26,36 +27,29 @@ def generate_normal_traffic(filename="normal.pcap", count=2000):
     wrpcap(filename, packets)
     print("Done.")
 
-def generate_anomalous_traffic(filename="anomaly.pcap", count=2000):
+def generate_anomalous_traffic(filename="anomaly.pcap", duration=300):
     """
-    Generates 'anomalous' traffic: highly persistent packet sizes or bursts.
-    Hurst exponent should be > 0.5 (long-range dependence).
+    Generates 'anomalous' traffic.
     """
-    print(f"Generating {count} anomalous packets to {filename}...")
+    count = duration * 20
+    print(f"Generating ~{count} anomalous packets to {filename} ({duration}s)...")
     packets = []
     start_time = time.time()
     
-    # Simulate a bursty/persistent process
-    # We'll use a regime switching model: small packets for a while, then huge packets
     current_size = 100
     
     for i in range(count):
-        # Persistence: size tends to stay similar to previous
         if random.random() < 0.9:
-            # Stay close to current
             current_size += random.randint(-10, 10)
         else:
-            # Jump
             current_size = random.randint(64, 1500)
             
         current_size = max(64, min(1500, current_size))
         
-        # Bursty timing
         if random.random() < 0.1:
-            # Burst
             interval = 0.001
         else:
-            interval = 0.1
+            interval = 0.05
             
         pkt_time = start_time + (i * interval)
         

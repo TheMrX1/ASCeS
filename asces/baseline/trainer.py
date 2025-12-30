@@ -58,7 +58,7 @@ class Trainer:
                 # Let's try to get at least a few samples if possible.
                 # Minimum size for H is ~50-100 points.
                 series_len = len(series)
-                min_h_len = 64
+                min_h_len = 16
                 
                 if series_len < min_h_len:
                     logger.warning(f"Insufficient data for baseline: window={window_size}, feature={feature}, len={series_len}")
