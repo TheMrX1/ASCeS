@@ -14,7 +14,7 @@ def compute_hurst_rs(series: list[float] | np.ndarray) -> float | None:
         float: The estimated Hurst exponent, or None if calculation fails/insufficient data.
     """
     series = np.array(series)
-    if len(series) < 4:  # Minimal length check
+    if len(series) < 3:  # Minimal length check lowered
         return None
     
     # Ensure no zero variance in the whole series to avoid immediate issues
@@ -28,15 +28,17 @@ def compute_hurst_rs(series: list[float] | np.ndarray) -> float | None:
     # Sub-series lengths (powers of 2 or logarithmic spacing)
     # We use a range of divisors
     N = len(series)
-    min_chunk = 4
+    min_chunk = 2 # Lowered from 4
     max_chunk = N // 2
     
     if max_chunk < min_chunk:
-        return None
+        # If N is small (e.g. 4), max=2, min=2. allow equal
+        if max_chunk < 2:
+            return None
 
     # Create chunk sizes
     chunk_sizes = np.unique(np.logspace(np.log10(min_chunk), np.log10(max_chunk), num=10).astype(int))
-    chunk_sizes = chunk_sizes[chunk_sizes > 4] # Filter very small chunks
+    chunk_sizes = chunk_sizes[chunk_sizes >= 2] # Filter very small chunks
 
     for n in chunk_sizes:
         # Split into chunks of size n
@@ -69,7 +71,7 @@ def compute_hurst_rs(series: list[float] | np.ndarray) -> float | None:
                 x_vals.append(np.log(n))
                 y_vals.append(np.log(avg_rs))
 
-    if len(x_vals) < 3:
+    if len(x_vals) < 2: # Relaxed from 3 to 2
         return None
 
     # Linear regression

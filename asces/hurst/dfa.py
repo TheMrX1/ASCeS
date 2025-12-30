@@ -16,7 +16,7 @@ def compute_hurst_dfa(series: list[float] | np.ndarray, order: int = 1) -> float
     """
     series = np.array(series)
     N = len(series)
-    if N < 4:
+    if N < 3: # Relaxed
         return None
         
     if np.std(series) == 0:
@@ -26,8 +26,8 @@ def compute_hurst_dfa(series: list[float] | np.ndarray, order: int = 1) -> float
     y = np.cumsum(series - np.mean(series))
     
     # 2. Define scales (window sizes)
-    min_scale = 4
-    max_scale = N // 4
+    min_scale = 2 # Relaxed
+    max_scale = N // 2 # Increased range
     if max_scale < min_scale:
         return None
         
@@ -64,7 +64,7 @@ def compute_hurst_dfa(series: list[float] | np.ndarray, order: int = 1) -> float
                 fluctuations.append(f_n)
                 valid_scales.append(scale)
                 
-    if len(valid_scales) < 3:
+    if len(valid_scales) < 2: # Relaxed to 2
         return None
         
     # 3. Log-log regression

@@ -29,8 +29,9 @@ class Detector:
             return
 
         # We need the series history to compute current H
-        # Use the last N points (e.g., 64)
+        # Use a reasonable history length for H calculation (e.g., 64)
         min_h_len = 4
+        max_h_history = 64
         
         for feature_name in features.keys():
             series = self.aggregator.get_series(window_size, feature_name)
@@ -38,8 +39,8 @@ class Detector:
                 # print(f"DEBUG: Series too short for {feature_name}: {len(series)} < {min_h_len}")
                 continue
                 
-            # Take the most recent chunk
-            recent_series = list(series)[-min_h_len:]
+            # Take the most recent chunk, up to max_history
+            recent_series = list(series)[-max_h_history:]
             # print(f"DEBUG: Checking {feature_name} window={window_size} len={len(recent_series)}")
             
             # Check for each method
@@ -48,11 +49,11 @@ class Detector:
                 try:
                     stats = self.baseline[str(window_size)][feature_name][method]
                 except (KeyError, TypeError):
-                    # print(f"DEBUG: No stats keys for {feature_name} {method}")
+                    print(f"DEBUG: No stats keys for {feature_name} {method}")
                     continue
                     
                 if not stats:
-                    # print(f"DEBUG: Stats is None/Empty for {feature_name} {method}")
+                    print(f"DEBUG: Stats is None/Empty for {feature_name} {method}")
                     continue
                     
                 # Compute current H
