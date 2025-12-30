@@ -62,13 +62,18 @@ def generate_anomalous_traffic(filename="anomaly.pcap", duration=300):
 
 if __name__ == "__main__":
     if len(sys.argv) < 2:
-        print("Usage: python traffic_gen.py [normal|anomaly]")
+        print("Usage: python traffic_gen.py [normal|anomaly] [duration_seconds]")
+        print("Default duration: 300s")
         sys.exit(1)
         
     mode = sys.argv[1]
+    duration = 300
+    if len(sys.argv) > 2:
+        duration = int(sys.argv[2])
+
     if mode == "normal":
-        generate_normal_traffic()
+        generate_normal_traffic(duration=duration)
     elif mode == "anomaly":
-        generate_anomalous_traffic()
+        generate_anomalous_traffic(duration=duration)
     else:
         print("Unknown mode")
