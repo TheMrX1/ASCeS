@@ -1,5 +1,5 @@
-import logging
 import time
+import numpy as np
 from typing import Dict, Any, List
 from ..hurst import compute_hurst_rs, compute_hurst_dfa
 from ..features.aggregator import WindowAggregator
@@ -39,6 +39,7 @@ class Detector:
                 
             # Take the most recent chunk
             recent_series = list(series)[-min_h_len:]
+            # print(f"DEBUG: Checking {feature_name} window={window_size} len={len(recent_series)}")
             
             # Check for each method
             for method in self.config.hurst_methods:
@@ -46,9 +47,11 @@ class Detector:
                 try:
                     stats = self.baseline[str(window_size)][feature_name][method]
                 except (KeyError, TypeError):
+                    # print(f"DEBUG: No stats keys for {feature_name} {method}")
                     continue
                     
                 if not stats:
+                    # print(f"DEBUG: Stats is None/Empty for {feature_name} {method}")
                     continue
                     
                 # Compute current H
@@ -59,7 +62,10 @@ class Detector:
                     current_h = compute_hurst_dfa(recent_series)
                     
                 if current_h is None:
+                    print(f"DEBUG: H is None for {feature_name} {method} (Std={np.std(recent_series):.4f})")
                     continue
+                
+                print(f"DEBUG: Computed H={current_h:.4f} for {feature_name}")
                     
                 # Calculate Z-score
                 mean_h = stats["mean"]
