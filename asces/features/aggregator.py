@@ -13,8 +13,8 @@ class WindowAggregator:
         self.window_sizes = sorted(window_sizes)
         # Buffers for current incomplete windows: {window_size: [packets]}
         self.current_buffers: Dict[int, List[Packet]] = {w: [] for w in self.window_sizes}
-        # Start times for current windows
-        self.window_starts: Dict[int, float] = {w: time.time() for w in self.window_sizes}
+        # Start times for current windows (initialized on first packet)
+        self.window_starts: Dict[int, float] = {w: None for w in self.window_sizes}
         
         # History of features: {window_size: {feature_name: deque([values])}}
         # We need enough history to calculate Hurst. 
@@ -29,15 +29,34 @@ class WindowAggregator:
         results = [] # List of (window_size, feature_dict)
         
         for w in self.window_sizes:
+            if self.window_starts[w] is None:
+                self.window_starts[w] = timestamp
+
+            # If timestamp goes backward (restarts) or jumps too far, reset?
+            # For now assume monotonic increasing timestamp from source.
+            
             if timestamp - self.window_starts[w] >= w:
                 # Window closed
+                # Warning: if gap is huge, we might skip many windows. 
+                # Ideally we should close multiple windows if time jumped.
+                # For simplified logic: just close one and restart.
+                
                 features = FeatureExtractor.extract(self.current_buffers[w])
                 self._update_history(w, features)
                 results.append((w, features))
                 
                 # Reset window
                 self.current_buffers[w] = []
-                self.window_starts[w] = timestamp
+                # Align next window start to the end of previous window, or current packet time?
+                # Ideally: next_start = prev_start + w. 
+                # This keeps alignment.
+                self.window_starts[w] += w
+                
+                # Handle case where we skipped multiple windows (empty data)
+                while timestamp - self.window_starts[w] >= w:
+                     # Fill empty windows with zeros?
+                     # For now, just skip to current time to catch up
+                     self.window_starts[w] = timestamp
             
             # Add packet to current buffer
             self.current_buffers[w].append(packet)
