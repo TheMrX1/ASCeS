@@ -39,56 +39,68 @@ def generate_normal_traffic(filename="normal.pcap", duration=300):
 def generate_anomalous_traffic(filename="anomaly.pcap", duration=300):
     """
     Generates 'anomalous' traffic mixed with STRANGE (WARN) and CRIT patterns.
+    Ensures total duration is at least 60 seconds (or requested duration) to satisfy window requirements.
     """
-    print(f"Generating anomalous traffic to {filename}...")
+    if duration < 60:
+        duration = 60 # Enforce minimum for detection
+        
+    print(f"Generating anomalous traffic to {filename} (minimum {duration}s)...")
     packets = []
     start_time = time.time()
     current_time = start_time
     
-    # 1. STRANGE Traffic (WARN)
-    # Behavior: Unusual IP, consistent but slightly higher rate, maybe unusual port
-    # Requirement: At least 20 packets
-    print("Generating STRANGE (WARN) traffic...")
-    strange_count = 25
-    for i in range(strange_count):
-        # Interval ~0.2s (5 packets/sec) - consistent
-        current_time += 0.2
-        
-        # Source: 192.168.1.77 (Unusual host)
-        # Port: 8888 (Uncommon)
-        pkt = Ether(src="00:11:22:33:44:77", dst="ff:ff:ff:ff:ff:ff") / \
-              IP(src="192.168.1.77", dst="192.168.1.20") / \
-              TCP(sport=8888, dport=80) / \
-              ("S" * 200) # 'S' for Strange
-        pkt.time = current_time
-        packets.append(pkt)
+    cycle = 0
+    while (current_time - start_time) < duration:
+        cycle += 1
+        # 1. STRANGE Traffic (WARN)
+        # Behavior: Unusual IP, consistent but slightly higher rate, maybe unusual port
+        # Requirement: At least 20 packets total (we do this every cycle)
+        # print(f"Cycle {cycle}: Generatng STRANGE (WARN) traffic...")
+        strange_count = 15
+        for i in range(strange_count):
+            # Interval ~0.2s (5 packets/sec) - consistent
+            current_time += 0.2
+            
+            # Source: 192.168.1.77 (Unusual host)
+            # Port: 8888 (Uncommon)
+            pkt = Ether(src="00:11:22:33:44:77", dst="ff:ff:ff:ff:ff:ff") / \
+                  IP(src="192.168.1.77", dst="192.168.1.20") / \
+                  TCP(sport=8888, dport=80) / \
+                  ("S" * 200) # 'S' for Strange
+            pkt.time = current_time
+            packets.append(pkt)
 
-    # Gap between events
-    current_time += 2.0
+        # Gap between events
+        current_time += 2.0
 
-    # 2. CRIT Traffic
-    # Behavior: Attack-like burst from another IP
-    # Requirement: At least 20 packets
-    print("Generating CRIT traffic...")
-    crit_count = 30
-    for i in range(crit_count):
-        # High rate burst: 0.005s interval
-        current_time += 0.005
-        
-        # Source: 192.168.1.66 (Attacker)
-        # Port: 6666
-        pkt = Ether(src="00:aa:bb:cc:dd:ee", dst="ff:ff:ff:ff:ff:ff") / \
-              IP(src="192.168.1.66", dst="192.168.1.20") / \
-              TCP(sport=6666, dport=80) / \
-              ("A" * 500) # 'A' for Attack
-        pkt.time = current_time
-        packets.append(pkt)
+        # 2. CRIT Traffic
+        # Behavior: Attack-like burst from another IP
+        # Requirement: At least 20 packets total
+        # print(f"Cycle {cycle}: Generating CRIT traffic...")
+        crit_count = 20
+        for i in range(crit_count):
+            # High rate burst: 0.005s interval
+            current_time += 0.005
+            
+            # Source: 192.168.1.66 (Attacker)
+            # Port: 6666
+            pkt = Ether(src="00:aa:bb:cc:dd:ee", dst="ff:ff:ff:ff:ff:ff") / \
+                  IP(src="192.168.1.66", dst="192.168.1.20") / \
+                  TCP(sport=6666, dport=80) / \
+                  ("A" * 500) # 'A' for Attack
+            pkt.time = current_time
+            packets.append(pkt)
+            
+        # 3. Background / Quiet period
+        # Fill some time to extend duration significantly
+        gap = 5.0
+        current_time += gap
         
     # Fill remaining time with some background noise if needed
     # (Optional, but keeps the file timeline realistic)
     
     wrpcap(filename, packets)
-    print(f"Done. Generated {len(packets)} packets.")
+    print(f"Done. Generated {len(packets)} packets over {current_time - start_time:.2f}s.")
 
 if __name__ == "__main__":
     if len(sys.argv) < 2:
