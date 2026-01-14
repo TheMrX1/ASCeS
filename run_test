@@ -10,7 +10,7 @@ python3 tools/traffic_gen.py anomaly 2400
 echo "Clearing old data..."
 rm -f data/baselines/*.json data/asces.db
 
-echo "Training Run 1..."
+echo "Training Run..."
 python3 -m asces.cli train --pcap normal.pcap
 
 

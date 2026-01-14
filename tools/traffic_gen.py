@@ -23,7 +23,11 @@ class UserProfile:
         print(f"[{self.name}] Moved to {context_name}. New IP: {self.current_ip}")
 
     def get_headers(self):
-        return f"GET /api/resource HTTP/1.1\r\nHost: example.com\r\nUser-Agent: Mozilla/5.0 ({self.name})\r\nCookie: session={self.cookies}\r\n\r\n"
+        base = f"GET /api/resource HTTP/1.1\r\nHost: example.com\r\nUser-Agent: Mozilla/5.0 ({self.name})\r\n"
+        if self.cookies and self.cookies != "none":
+            base += f"Cookie: session={self.cookies}\r\n"
+        base += "\r\n"
+        return base
 
 # Only Bob exists in normal world
 bob = UserProfile("Bob", "192.168.1.100", "bob_session_secret_123")
