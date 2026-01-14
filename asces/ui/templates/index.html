@@ -61,13 +61,13 @@
                     <input type="checkbox" id="filter-strange"
                         class="form-checkbox h-5 w-5 text-yellow-600 rounded bg-slate-700 border-slate-600 focus:ring-yellow-500"
                         onchange="applyFilters()">
-                    <span class="ml-2 text-yellow-200">Show STRANGE (WARN)</span>
+                    <span class="ml-2 text-yellow-200">WARN</span>
                 </label>
                 <label class="inline-flex items-center">
                     <input type="checkbox" id="filter-crit"
                         class="form-checkbox h-5 w-5 text-red-600 rounded bg-slate-700 border-slate-600 focus:ring-red-500"
                         onchange="applyFilters()">
-                    <span class="ml-2 text-red-200">Show CRIT</span>
+                    <span class="ml-2 text-red-200">CRIT</span>
                 </label>
             </div>
         </div>
@@ -242,6 +242,9 @@
             function openModal(row) {
                 const data = row.dataset;
 
+                // Save state
+                localStorage.setItem('openModalId', data.id);
+
                 document.getElementById('modal-id').textContent = data.id;
                 document.getElementById('modal-time').textContent = data.time;
                 document.getElementById('modal-feature').textContent = data.feature;
@@ -270,6 +273,7 @@
             }
 
             function closeModal() {
+                localStorage.removeItem('openModalId');
                 modal.classList.add('hidden');
             }
 
@@ -281,13 +285,20 @@
             });
 
             // Add Click Listeners to Rows
-            // Note: We need to re-attach listeners if we were modifying DOM dynamically, 
-            // but here the table is static rendered by server.
             const rows = document.querySelectorAll('.alert-row');
             rows.forEach(row => {
                 row.style.cursor = 'pointer';
                 row.addEventListener('click', () => openModal(row));
             });
+
+            // Check for saved modal state on load
+            const savedModalId = localStorage.getItem('openModalId');
+            if (savedModalId) {
+                const row = document.querySelector(`.alert-row[data-id="${savedModalId}"]`);
+                if (row) {
+                    openModal(row);
+                }
+            }
 
 
             // Auto-refresh every 10 seconds

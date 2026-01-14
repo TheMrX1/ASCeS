@@ -94,7 +94,7 @@ class Detector:
         self.last_alert_time[key] = now
         
         level = "WARN"
-        if abs(z) > 4.5:
+        if abs(z) > 50.0:
             level = "CRIT"
         elif abs(z) < 3.5:
             level = "INFO"
