@@ -2,12 +2,24 @@ import logging
 from scapy.all import rdpcap, PcapReader
 from typing import Callable, Any
 import time
+import sys
 
 logger = logging.getLogger(__name__)
 
 class PcapCapture:
     def __init__(self, pcap_path: str):
         self.pcap_path = pcap_path
+
+    def _count_packets(self) -> int:
+        """Pre-count packets for progress bar."""
+        count = 0
+        try:
+            with PcapReader(self.pcap_path) as pcap:
+                for _ in pcap:
+                    count += 1
+        except Exception:
+            pass
+        return count
 
     def process(self, callback: Callable[[Any], None], realtime: bool = False):
         """
@@ -19,8 +31,11 @@ class PcapCapture:
         """
         logger.info(f"Reading PCAP: {self.pcap_path}")
         
+        # Pre-count for progress bar
+        total_packets = self._count_packets()
+        logger.info(f"Total packets to process: {total_packets}")
+        
         try:
-            # Use PcapReader for streaming large files
             with PcapReader(self.pcap_path) as pcap:
                 first_ts = None
                 start_time = time.time()
@@ -28,8 +43,15 @@ class PcapCapture:
                 count = 0
                 for pkt in pcap:
                     count += 1
-                    if count % 1000 == 0:
-                        logger.info(f"Processed {count} packets... (Time: {float(pkt.time):.4f})")
+                    
+                    # Progress Bar (every 100 packets)
+                    if count % 100 == 0 or count == total_packets:
+                        progress = (count / total_packets) * 100 if total_packets > 0 else 100
+                        bar_len = 30
+                        filled = int(bar_len * count / total_packets) if total_packets > 0 else bar_len
+                        bar = '█' * filled + '░' * (bar_len - filled)
+                        sys.stdout.write(f"\r[{bar}] {progress:.1f}% ({count}/{total_packets})")
+                        sys.stdout.flush()
 
                     if realtime:
                         if first_ts is None:
@@ -47,4 +69,5 @@ class PcapCapture:
             logger.error(f"Error reading PCAP: {e}")
             raise
         
+        print() # Newline after progress bar
         logger.info("PCAP processing finished")

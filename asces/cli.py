@@ -76,7 +76,25 @@ def monitor(
     pcap: Optional[str] = typer.Option(None, help="PCAP file path")
 ):
     """Start monitoring for anomalies."""
+    import os
+    from datetime import datetime
+    
     config = load_config()
+    
+    # Setup special logging for monitor - clear and write to logs/monitor.log
+    log_file = "logs/monitor.log"
+    os.makedirs("logs", exist_ok=True)
+    
+    # Clear existing log file
+    with open(log_file, "w") as f:
+        f.write(f"=== ASCeS Monitor Log - Started {datetime.now().isoformat()} ===\n")
+    
+    # Add file handler
+    file_handler = logging.FileHandler(log_file)
+    file_handler.setLevel(logging.INFO)
+    file_handler.setFormatter(logging.Formatter('%(asctime)s [%(levelname)s] %(name)s: %(message)s'))
+    logging.getLogger().addHandler(file_handler)
+    
     setup_logging(config)
     
     logger = logging.getLogger("asces.monitor")
@@ -95,10 +113,6 @@ def monitor(
     aggregator = WindowAggregator(config.windows)
     detector = Detector(aggregator, baseline, AlertRepo(db.get_session()), config)
     
-    # Hook detector into aggregator? 
-    # Aggregator returns results when add_packet is called?
-    # No, add_packet returns list of closed windows.
-    
     def packet_callback(pkt, ts):
         closed_windows = aggregator.add_packet(pkt, ts)
         for win_size, features, metadata in closed_windows:
@@ -108,12 +122,21 @@ def monitor(
     
     if pcap:
         capture = PcapCapture(pcap)
-        # Process as fast as possible for file analysis
         capture.process(lambda p: packet_callback(p, float(p.time)), realtime=False)
     else:
         interface = iface or config.interface
         capture = LiveCapture(interface, config.bpf_filter)
         capture.start(lambda p: packet_callback(p, time.time()))
+    
+    # End Instructions
+    print("\n" + "="*60)
+    print("MONITORING COMPLETE")
+    print("="*60)
+    print(f"\n📊 To view alerts in the web UI, run:")
+    print("   python3 -m asces.cli serve")
+    print(f"\n📝 To view detailed logs, run:")
+    print(f"   cat {log_file}")
+    print("="*60 + "\n")
 
 @app.command()
 def serve(
