@@ -64,14 +64,14 @@ def generate_normal_traffic(filename="normal.pcap", duration=300):
             user.rotate_ip()
             
         # Requests come in small bursts (page load)
-        burst = random.randint(1, 5)
+        burst = random.randint(2, 8)
         for _ in range(burst):
             current_time += random.expovariate(2.0) # Avg 0.5s between resources
             pkt = generate_packet(user, current_time)
             packets.append(pkt)
             
-        # Think time between pages
-        current_time += random.expovariate(0.1) # Avg 10s think time
+        # Think time between pages (Simulating a busier network with multiple active users)
+        current_time += random.uniform(0.1, 0.5) # Avg 0.3s gap between user actions
         
     wrpcap(filename, packets)
     print(f"Done. {len(packets)} packets.")

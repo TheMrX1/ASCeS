@@ -42,5 +42,5 @@ def get_alerts(limit: int = 50, level: str = None, db_session: Session = Depends
 @app.get("/", response_class=HTMLResponse)
 def read_root(request: Request, db_session: Session = Depends(get_db)):
     repo = AlertRepo(db_session)
-    alerts = repo.get_alerts(limit=20)
+    alerts = repo.get_alerts(limit=100)
     return templates.TemplateResponse("index.html", {"request": request, "alerts": alerts})

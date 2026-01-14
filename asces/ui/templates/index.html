@@ -148,6 +148,24 @@
                         </p>
                     </div>
 
+                    <!-- Metadata Section -->
+                    <div id="modal-metadata-container" class="mb-8 hidden">
+                        <h3 class="text-lg font-semibold text-white mb-2">Captured Metadata</h3>
+                        <div
+                            class="bg-slate-900/50 rounded-lg border border-slate-700/50 p-4 text-sm font-mono text-slate-300 space-y-2">
+                            <div id="metadata-ips-group" class="hidden">
+                                <span class="text-slate-500 block text-xs uppercase tracking-wider mb-1">Observed
+                                    IPs</span>
+                                <p id="metadata-ips" class="break-all"></p>
+                            </div>
+                            <div id="metadata-cookies-group" class="hidden">
+                                <span class="text-slate-500 block text-xs uppercase tracking-wider mb-1 mt-3">Observed
+                                    Sessions (Cookies)</span>
+                                <p id="metadata-cookies" class="break-all"></p>
+                            </div>
+                        </div>
+                    </div>
+
                     <div class="grid grid-cols-2 gap-6">
                         <div class="space-y-4">
                             <h4
@@ -239,6 +257,7 @@
             const modal = document.getElementById('alert-modal');
 
             function openModal(row) {
+                document.body.style.overflow = 'hidden'; // Lock scroll
                 const data = row.dataset;
 
                 // Save state
@@ -253,7 +272,46 @@
                 document.getElementById('modal-h').textContent = parseFloat(data.currenth).toFixed(3);
                 document.getElementById('modal-mean').textContent = parseFloat(data.mean).toFixed(3);
                 document.getElementById('modal-std').textContent = parseFloat(data.std).toFixed(3);
+                document.getElementById('modal-std').textContent = parseFloat(data.std).toFixed(3);
                 document.getElementById('modal-method').textContent = data.method;
+
+                // Metadata Processing
+                const metaContainer = document.getElementById('modal-metadata-container');
+                const ipsGroup = document.getElementById('metadata-ips-group');
+                const cookiesGroup = document.getElementById('metadata-cookies-group');
+
+                try {
+                    const meta = JSON.parse(data.metadata || '{}');
+                    let hasMeta = false;
+
+                    // IPs
+                    if (meta.ips && meta.ips.length > 0) {
+                        document.getElementById('metadata-ips').textContent = meta.ips.join(', ');
+                        ipsGroup.classList.remove('hidden');
+                        hasMeta = true;
+                    } else {
+                        ipsGroup.classList.add('hidden');
+                    }
+
+                    // Cookies
+                    if (meta.cookies && meta.cookies.length > 0) {
+                        document.getElementById('metadata-cookies').textContent = meta.cookies.join(', ');
+                        cookiesGroup.classList.remove('hidden');
+                        hasMeta = true;
+                    } else {
+                        cookiesGroup.classList.add('hidden');
+                    }
+
+                    if (hasMeta) {
+                        metaContainer.classList.remove('hidden');
+                    } else {
+                        metaContainer.classList.add('hidden');
+                    }
+
+                } catch (e) {
+                    console.error("Failed to parse metadata", e);
+                    metaContainer.classList.add('hidden');
+                }
 
                 // Level Styling
                 const levelEl = document.getElementById('modal-level');
@@ -274,6 +332,7 @@
             function closeModal() {
                 localStorage.removeItem('openModalId');
                 modal.classList.add('hidden');
+                document.body.style.overflow = ''; // Unlock scroll
             }
 
             // Close on clicking outside
