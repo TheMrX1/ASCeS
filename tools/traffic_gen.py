@@ -83,11 +83,12 @@ def generate_anomalous_traffic(filename="anomaly.pcap", duration=3600):
     if duration < 2400: duration = 2400 # Min 40 mins
     
     # -------------------------------------------------------------
-    # 1. Target Calculations (Strict Limits)
     # Total events: 150 - 200
     # Crit: 1/4 (25%) to 1/3 (33.3%) of Total
     # Warn: The rest
     # -------------------------------------------------------------
+    locations = ["Cafe", "Theater", "Park", "Friend's House"] # Defined early for usage
+    
     total_events = random.randint(150, 200)
     crit_ratio = random.uniform(0.25, 0.33)
     target_crits = int(total_events * crit_ratio)
