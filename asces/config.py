@@ -12,7 +12,7 @@ class AscesConfig(BaseModel):
     hurst_methods: List[str] = ["rs", "dfa"]
     train_duration_seconds: int = 240
     z_threshold: float = 3.0
-    cooldown_seconds: int = 30
+    cooldown_seconds: int = 1
     db_path: str = "data/asces.db"
     baselines_dir: str = "data/baselines"
     log_path: str = "logs/asces.log"
