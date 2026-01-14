@@ -1,11 +1,11 @@
 #!/bin/bash
 set -e
 
-echo "Generating normal traffic (1200s)..."
-python3 tools/traffic_gen.py normal 1200
+echo "Generating normal traffic (40m - Bob Only)..."
+python3 tools/traffic_gen.py normal 2400
 
-echo "Generating anomaly traffic (600s)..."
-python3 tools/traffic_gen.py anomaly 600
+echo "Generating anomaly traffic (40m - Bob + Hacker)..."
+python3 tools/traffic_gen.py anomaly 2400
 
 echo "Clearing old data..."
 rm -f data/baselines/*.json data/asces.db
@@ -13,16 +13,6 @@ rm -f data/baselines/*.json data/asces.db
 echo "Training Run 1..."
 python3 -m asces.cli train --pcap normal.pcap
 
-echo "Clearing old data..."
-rm -f data/baselines/*.json data/asces.db
-
-echo "Training Run 2..."
-python3 -m asces.cli train --pcap normal.pcap
-
-echo "Clearing old data..."
-rm -f data/baselines/*.json data/asces.db
-
-echo "Training Run 3..."
-python3 -m asces.cli train --pcap normal.pcap
 
 echo "Done. You can now run 'python3 -m asces.cli monitor --pcap anomaly.pcap'"
+echo "INSTRUCTION: After monitor finishes, start UI with 'python3 -m asces.cli serve'"

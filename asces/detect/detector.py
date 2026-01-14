@@ -103,6 +103,40 @@ class Detector:
             level = "INFO"
             
         msg = f"Anomaly detected in {feature} (Window {window}s). H={h:.3f} (Baseline: {mean:.3f}±{std:.3f}), Z={z:.2f}"
+        
+        # Attack Classification Logic
+        # Heuristics based on feature type and Z-score magnitude
+        attack_type = None
+        
+        if "packets" in feature or "bytes" in feature:
+            if abs(z) > 10.0 and h < mean: # H drop usually means stronger correlation/regularity (like a flood)
+                attack_type = "Possible DDoS Attack (High Volume)"
+            elif abs(z) > 5.0:
+                attack_type = "Suspicious Traffic Surge"
+                
+        elif "unique_src_ips" in feature:
+            if abs(z) > 3.0:
+                 # Check metadata for robust confirmation
+                 # Hijacking Signature: Multiple IPs sharing one Cookie
+                 metadata_confirmed = False
+                 if metadata and "cookies" in metadata and "ips" in metadata:
+                     unique_cookies = set(metadata["cookies"])
+                     unique_ips = set(metadata["ips"])
+                     if len(unique_ips) > 1 and len(unique_cookies) == 1:
+                         msg += " [CONFIRMED: Multiple IPs using same Cookie]"
+                         attack_type = "Session Hijacking (High Confidence)"
+                         metadata_confirmed = True
+                 
+                 if not metadata_confirmed:
+                     attack_type = "Possible Session Hijacking / Unauthorized Access"
+                 
+        elif "unique_dst_ports" in feature or "unique_src_ports" in feature:
+             if abs(z) > 5.0:
+                 attack_type = "Possible Port Scanning"
+                 
+        if attack_type:
+            msg += f" - [{attack_type}]"
+            
         logger.warning(msg)
         
         import json
@@ -122,5 +156,6 @@ class Detector:
             "baseline_std": std,
             "z_score": z,
             "message": msg,
+            "assessment": attack_type, # New field
             "metadata_json": meta_json
         })

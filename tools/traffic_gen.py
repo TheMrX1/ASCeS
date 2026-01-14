@@ -6,41 +6,34 @@ from scapy.all import wrpcap, IP, TCP, UDP, Ether, Raw
 # ----- Configuration & Profiles -----
 
 class UserProfile:
-    def __init__(self, name, base_ip, cookies, behavior_type="normal"):
+    def __init__(self, name, base_ip, cookies):
         self.name = name
         self.base_ip = base_ip
         self.current_ip = base_ip
         self.cookies = cookies
-        self.behavior_type = behavior_type # normal, attacker
-        self.requests_made = 0
+        self.last_rotation = 0
 
-    def rotate_ip(self):
-        # Simulate moving to a coffee shop or VPN
+    def rotate_ip(self, context_name):
+        # Simulate moving to a new location (Home -> Cafe -> Theater)
         octets = self.base_ip.split('.')
-        new_octet = int(octets[3]) + random.randint(1, 20)
-        self.current_ip = f"{octets[0]}.{octets[1]}.{octets[2]}.{new_octet}"
-        print(f"[{self.name}] Rotated IP to {self.current_ip}")
+        # Completely new IP logic
+        new_third = int(octets[2]) + random.randint(0, 5) 
+        new_fourth = random.randint(10, 200)
+        self.current_ip = f"{octets[0]}.{octets[1]}.{new_third}.{new_fourth}"
+        print(f"[{self.name}] Moved to {context_name}. New IP: {self.current_ip}")
 
     def get_headers(self):
         return f"GET /api/resource HTTP/1.1\r\nHost: example.com\r\nUser-Agent: Mozilla/5.0 ({self.name})\r\nCookie: session={self.cookies}\r\n\r\n"
 
-# Define Users
-users = [
-    UserProfile("Alice", "192.168.1.100", "alice_session_id_12345"),
-    UserProfile("Bob", "192.168.1.101", "bob_session_id_67890"),
-    UserProfile("Charlie", "192.168.1.102", "charlie_session_id_abcde"),
-]
+# Only Bob exists in normal world
+bob = UserProfile("Bob", "192.168.1.100", "bob_session_secret_123")
 
-# Define Attackers
-attackers = [
-    UserProfile("Attacker1", "192.168.1.166", "hacker_session_x"),
-    UserProfile("Attacker2", "192.168.1.167", "hacker_session_y"),
-    UserProfile("Attacker3 (Bot)", "192.168.1.168", "bottoken_z", "bot"),
-]
-
-
-def generate_packet(profile, timestamp, dst_ip="192.168.1.20", payload_mult=1):
-    payload = profile.get_headers() + ("X" * (50 * payload_mult))
+def generate_packet(profile, timestamp, dst_ip="192.168.1.20", payload_mult=1, custom_cookie=None):
+    headers = profile.get_headers()
+    if custom_cookie:
+        headers = headers.replace(f"session={profile.cookies}", f"session={custom_cookie}")
+        
+    payload = headers + ("X" * (50 * payload_mult))
     pkt = Ether(src=f"00:11:22:33:44:{random.randint(10,99)}", dst="ff:ff:ff:ff:ff:ff") / \
           IP(src=profile.current_ip, dst=dst_ip) / \
           TCP(sport=random.randint(10000, 60000), dport=80, flags="PA") / \
@@ -48,98 +41,133 @@ def generate_packet(profile, timestamp, dst_ip="192.168.1.20", payload_mult=1):
     pkt.time = timestamp
     return pkt
 
-def generate_normal_traffic(filename="normal.pcap", duration=300):
-    print(f"Generating realistic NORMAL traffic to {filename} ({duration}s)...")
+def generate_normal_traffic(filename="normal.pcap", duration=1200):
+    print(f"Generating NORMAL traffic (Bob Only) to {filename} ({duration}s)...")
     packets = []
-    start_time = time.time()
+    # Virtual Time Simulation
+    start_time = time.time() # This is just the base offset
     current_time = start_time
+    end_time = start_time + duration
     
-    while current_time - start_time < duration:
-        # Simulate normal user browsing
-        # Choose a random user
-        user = random.choice(users)
-        
-        # IP Rotation Chance (very low in normal)
-        if random.random() < 0.001: 
-            user.rotate_ip()
+    # Bob moves every ~10-15 minutes
+    next_move_time = current_time + random.randint(600, 900)
+    locations = ["Cafe", "Theater", "Park", "Friend's House"]
+    
+    # Loop until virtual time exceeds duration
+    while current_time < end_time:
+        # Check rotation
+        if current_time > next_move_time:
+            bob.rotate_ip(random.choice(locations))
+            next_move_time = current_time + random.randint(600, 900)
             
-        # Requests come in small bursts (page load)
-        burst = random.randint(2, 8)
+        # Bob browsing behavior
+        # Bursts of activity followed by reading/watching
+        burst = random.randint(3, 12)
         for _ in range(burst):
-            current_time += random.expovariate(2.0) # Avg 0.5s between resources
-            pkt = generate_packet(user, current_time)
+            current_time += random.uniform(0.1, 0.8) 
+            pkt = generate_packet(bob, current_time)
             packets.append(pkt)
             
-        # Think time between pages (Simulating a busier network with multiple active users)
-        current_time += random.uniform(0.1, 0.5) # Avg 0.3s gap between user actions
+        # Reading time (3-15 seconds)
+        current_time += random.uniform(3, 15)
         
     wrpcap(filename, packets)
-    print(f"Done. {len(packets)} packets.")
+    print(f"Done. {len(packets)} packets. (Bob traffic only)")
 
-def generate_anomalous_traffic(filename="anomaly.pcap", duration=300):
-    if duration < 60: duration = 60
-    print(f"Generating realistic ANOMALY mixed traffic to {filename} ({duration}s)...")
+def generate_anomalous_traffic(filename="anomaly.pcap", duration=3600):
+    # Ensure min duration for scenario logic
+    if duration < 2400: duration = 2400 # Min 40 mins
     
-    # Anomaly Constraints
-    total_anomalies_target = random.randint(80, 157)
-    max_per_type = int(total_anomalies_target * (2/3))
-    
-    counts = {"WARN": 0, "CRIT": 0}
-    total_anomalies_generated = 0
-    
-    print(f"Targeting {total_anomalies_target} anomalies (Max {max_per_type} per type)...")
-
+    print(f"Generating ANOMALY traffic (Bob + Hacker) to {filename} ({duration}s)...")
+    print(f"Generating ANOMALY traffic (Bob + Hacker) to {filename} ({duration}s)...")
     packets = []
+    # Virtual Time
     start_time = time.time()
     current_time = start_time
+    end_time = start_time + duration
     
-    while current_time - start_time < duration:
-        # Stop anomalies if target reached
-        can_generate_anomaly = total_anomalies_generated < total_anomalies_target
+    # 1. Schedule Attacks
+    # 3-4 attacks total
+    num_attacks = random.randint(3, 4)
+    # Distribute them within the duration (avoiding first/last 5 mins)
+    valid_window_start = start_time + 300
+    valid_window_end = end_time - 300
+    
+    attack_starts = sorted([random.uniform(valid_window_start, valid_window_end) for _ in range(num_attacks)])
+    attacks = []
+    types = ["DDoS", "SessionHijacking", "DDoS"] # Weighted mix
+    
+    for start in attack_starts:
+        a_type = random.choice(types)
+        # Attack lasts 2-3 minutes
+        a_duration = random.randint(120, 180) 
+        attacks.append({
+            "start": start,
+            "end": start + a_duration,
+            "type": a_type,
+            "ip": f"10.66.6.{random.randint(10, 200)}" # Hacker IP
+        })
+        print(f"  -> Scheduled {a_type} at T+{int(start-start_time)}s (Duration {a_duration}s) from {attacks[-1]['ip']}")
+
+    # Bob's Schedule
+    next_move_time = current_time + random.randint(600, 900)
+    locations = ["Cafe", "Theater", "Park", "Friend's House"]
+
+    # Hacker State
+    active_attacks = []
+
+    while current_time < end_time:
+        # A. Bob's Normal Life (Background)
+        if current_time > next_move_time:
+            bob.rotate_ip(random.choice(locations))
+            next_move_time = current_time + random.randint(600, 900)
         
-        # 1. Background Normal Traffic (Always happening)
-        if random.random() < 0.7:
-            user = random.choice(users)
-            current_time += random.uniform(0.05, 0.2) # Background hum
-            pkt = generate_packet(user, current_time)
+        # Bob browsing
+        burst = random.randint(3, 12)
+        for _ in range(burst):
+            current_time += random.uniform(0.1, 0.8)
+            pkt = generate_packet(bob, current_time)
             packets.append(pkt)
         
-        # Determine Anomaly Opportunity
-        if can_generate_anomaly:
-            r = random.random()
-            
-            # STRANGE Traffic (WARN)
-            if r < 0.05 and counts["WARN"] < max_per_type:
-                target = users[1] # Bob
-                # Burst
-                for _ in range(random.randint(20, 40)):
-                    current_time += 0.05
-                    pkt = generate_packet(target, current_time, payload_mult=10)
-                    packets.append(pkt)
+        # B. Hacker Intervention
+        # Check if we are in any attack window
+        for attack in attacks:
+            if attack["start"] <= current_time <= attack["end"]:
+                # Execute Attack Logic
                 
-                counts["WARN"] += 1
-                total_anomalies_generated += 1
-                
-            # CRIT Traffic - Attackers
-            elif r > 0.98 and counts["CRIT"] < max_per_type:
-                attacker = random.choice(attackers)
-                burst_len = random.randint(50, 150)
-                
-                if random.random() < 0.3: attacker.rotate_ip()
-                    
-                for _ in range(burst_len):
-                    current_time += 0.005 # Fast spam
-                    pkt = generate_packet(attacker, current_time, payload_mult=5)
-                    packets.append(pkt)
-                    
-                counts["CRIT"] += 1
-                total_anomalies_generated += 1
+                if attack["type"] == "DDoS":
+                    # High Rate Check
+                    # Generate many packets in this small time slice
+                    # DDoS: ~50-100 packets per second logic, but integrated into this loop
+                    # We inject a burst right now
+                    ddos_burst = random.randint(10, 20)
+                    for _ in range(ddos_burst):
+                        # Slight time increment for ddos packets
+                        pkttime = current_time + random.uniform(0.001, 0.05)
+                        # Hacker Profile (Dynamic)
+                        hacker_prof = UserProfile("Hacker", attack["ip"], "none") 
+                        pkt = generate_packet(hacker_prof, pkttime, payload_mult=5)
+                        packets.append(pkt)
+                        
+                elif attack["type"] == "SessionHijacking":
+                    # Hijacking: Hacker IP uses BOB'S Cookie
+                    # Moderate rate, looking like normal usage but from wrong IP
+                    hijack_burst = random.randint(2, 5)
+                    for _ in range(hijack_burst):
+                        pkttime = current_time + random.uniform(0.1, 0.5)
+                        hacker_prof = UserProfile("Hacker", attack["ip"], bob.cookies) # Stolen Cookie!
+                        pkt = generate_packet(hacker_prof, pkttime)
+                        packets.append(pkt)
 
-        # Advance time slightly if nothing happened
-        current_time += 0.001
+        # C. Time Passage
+        # Normal reading time
+        current_time += random.uniform(3, 15)
 
+    # Sort packets by time (since we injected attacks slightly out of order/parallel)
+    packets.sort(key=lambda x: x.time)
+    
     wrpcap(filename, packets)
-    print(f"Done. {len(packets)} packets. Anomalies: {total_anomalies_generated} (WARN: {counts['WARN']}, CRIT: {counts['CRIT']})")
+    print(f"Done. {len(packets)} packets. Generated {num_attacks} attacks.")
 
 if __name__ == "__main__":
     if len(sys.argv) < 2:
@@ -147,7 +175,7 @@ if __name__ == "__main__":
         sys.exit(1)
         
     mode = sys.argv[1]
-    duration = 300
+    duration = 1200
     if len(sys.argv) > 2:
         duration = int(sys.argv[2])
 

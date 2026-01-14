@@ -18,6 +18,7 @@ class Alert(Base):
     baseline_std = Column(Float)
     z_score = Column(Float)
     message = Column(Text)
+    assessment = Column(String) # Short classification (e.g. "DDoS")
     metadata_json = Column(Text) # Stores JSON string of IPs, Cookies, etc.
 
 class BaselineMeta(Base):
