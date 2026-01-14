@@ -186,10 +186,10 @@ def generate_anomalous_traffic(filename="anomaly.pcap", duration=3600):
         # If we passed a scheduled warn timestamp
         if check_warn_idx < len(warn_timestamps) and current_time >= warn_timestamps[check_warn_idx]:
              # Execute WARN (High Latency/Strange Payload by Bob)
-             # This is ONE event
-             warn_burst = random.randint(15, 25)
+             # INCREASED INTENSITY: Burst 40-60 packets (was 15-25) to ensure Z-score spike
+             warn_burst = random.randint(40, 60)
              for _ in range(warn_burst):
-                 current_time += 0.05
+                 current_time += 0.02 # Faster than normal
                  pkt = generate_packet(bob, current_time, payload_mult=3)
                  packets.append(pkt)
              generated_warns += 1
@@ -198,21 +198,15 @@ def generate_anomalous_traffic(filename="anomaly.pcap", duration=3600):
         # C. Check for CRIT Event (Hacker inside Window)
         for aw in attack_windows:
             if aw["start"] <= current_time <= aw["end"]:
-                # We are in an attack window. 
-                # We need to consume 'events_allocated' evenly over the duration of the window
-                # Event Rate = allocated / duration
-                # Probability check?
                 if aw["events_allocated"] > 0:
-                     # Simple heuristic: try to space them out?
-                     # Or just bias random?
                      if random.random() < 0.3:
                          # Execute CRIT Event (Hacker Burst)
-                         # High Rate
-                         crit_burst = random.randint(10, 30)
+                         # INCREASED INTENSITY: Burst 80-150 packets (was 10-30) for DDoS/Hijacking
+                         crit_burst = random.randint(80, 150)
                          hacker_prof = UserProfile("Hacker", aw["ip"], aw["cookie"])
                          
                          for _ in range(crit_burst):
-                             current_time += 0.01 # Fast
+                             current_time += 0.005 # Very Fast (DDoS speeds)
                              pkt = generate_packet(hacker_prof, current_time)
                              packets.append(pkt)
                              

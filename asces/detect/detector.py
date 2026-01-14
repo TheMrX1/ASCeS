@@ -97,7 +97,7 @@ class Detector:
         self.last_alert_time[key] = now
         
         level = "WARN"
-        if abs(z) > 50.0:
+        if abs(z) > 20.0: # Lowered from 50.0 to ensure CRITs trigger
             level = "CRIT"
         elif abs(z) < 3.5:
             level = "INFO"
@@ -109,9 +109,11 @@ class Detector:
         attack_type = None
         
         if "packets" in feature or "bytes" in feature:
-            if abs(z) > 10.0 and h < mean: # H drop usually means stronger correlation/regularity (like a flood)
+            # LOWERED THRESHOLD: Z > 5.0 (was 10.0)
+            if abs(z) > 5.0 and h < mean: 
                 attack_type = "Possible DDoS Attack (High Volume)"
-            elif abs(z) > 5.0:
+            elif abs(z) > 3.5:
+                # LOWERED THRESHOLD: Z > 3.5 (was 5.0)
                 attack_type = "Suspicious Traffic Surge"
                 
         elif "unique_src_ips" in feature:
