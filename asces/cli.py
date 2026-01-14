@@ -101,8 +101,8 @@ def monitor(
     
     def packet_callback(pkt, ts):
         closed_windows = aggregator.add_packet(pkt, ts)
-        for win_size, features in closed_windows:
-            detector.check_window(win_size, features)
+        for win_size, features, metadata in closed_windows:
+            detector.check_window(win_size, features, metadata)
 
     logger.info("Starting monitor mode...")
     

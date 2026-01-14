@@ -18,6 +18,7 @@ class Alert(Base):
     baseline_std = Column(Float)
     z_score = Column(Float)
     message = Column(Text)
+    metadata_json = Column(Text) # Stores JSON string of IPs, Cookies, etc.
 
 class BaselineMeta(Base):
     __tablename__ = "baselines_metadata"

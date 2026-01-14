@@ -1,111 +1,136 @@
 import time
 import random
 import sys
-from scapy.all import wrpcap, IP, TCP, UDP, Ether
+from scapy.all import wrpcap, IP, TCP, UDP, Ether, Raw
+
+# ----- Configuration & Profiles -----
+
+class UserProfile:
+    def __init__(self, name, base_ip, cookies, behavior_type="normal"):
+        self.name = name
+        self.base_ip = base_ip
+        self.current_ip = base_ip
+        self.cookies = cookies
+        self.behavior_type = behavior_type # normal, attacker
+        self.requests_made = 0
+
+    def rotate_ip(self):
+        # Simulate moving to a coffee shop or VPN
+        octets = self.base_ip.split('.')
+        new_octet = int(octets[3]) + random.randint(1, 20)
+        self.current_ip = f"{octets[0]}.{octets[1]}.{octets[2]}.{new_octet}"
+        print(f"[{self.name}] Rotated IP to {self.current_ip}")
+
+    def get_headers(self):
+        return f"GET /api/resource HTTP/1.1\r\nHost: example.com\r\nUser-Agent: Mozilla/5.0 ({self.name})\r\nCookie: session={self.cookies}\r\n\r\n"
+
+# Define Users
+users = [
+    UserProfile("Alice", "192.168.1.100", "alice_session_id_12345"),
+    UserProfile("Bob", "192.168.1.101", "bob_session_id_67890"),
+    UserProfile("Charlie", "192.168.1.102", "charlie_session_id_abcde"),
+]
+
+# Define Attackers
+attackers = [
+    UserProfile("Attacker1", "192.168.1.166", "hacker_session_x"),
+    UserProfile("Attacker2", "192.168.1.167", "hacker_session_y"),
+    UserProfile("Attacker3 (Bot)", "192.168.1.168", "bottoken_z", "bot"),
+]
+
+
+def generate_packet(profile, timestamp, dst_ip="192.168.1.20", payload_mult=1):
+    payload = profile.get_headers() + ("X" * (50 * payload_mult))
+    pkt = Ether(src=f"00:11:22:33:44:{random.randint(10,99)}", dst="ff:ff:ff:ff:ff:ff") / \
+          IP(src=profile.current_ip, dst=dst_ip) / \
+          TCP(sport=random.randint(10000, 60000), dport=80, flags="PA") / \
+          Raw(load=payload)
+    pkt.time = timestamp
+    return pkt
 
 def generate_normal_traffic(filename="normal.pcap", duration=300):
-    """
-    Generates 'normal' traffic for a specific duration to ensure sufficient window data.
-    Rate: ~20 packets/sec
-    """
-    count = duration * 20
-    print(f"Generating ~{count} normal packets to {filename} ({duration}s)...")
-    packets = []
-    start_time = time.time()
-    
-    for i in range(count):
-        # Random sizes (White Noise)
-        payload_size = random.randint(64, 1500)
-        
-        # Interval ~0.05s but with more variance (Poisson-like)
-        # Use exponential distribution for intervals to mimic real traffic
-        interval = random.expovariate(20.0) # Avg rate 20
-        start_time += interval
-        pkt_time = start_time
-        
-        # Randomize IPs/Ports to ensure Unique* features have variance
-        # Pick from a small pool to keep "normal" pattern stable but not constant
-        src_ip = f"192.168.1.{random.randint(10, 15)}"
-        src_port = random.choice([12345, 12346, 12347, 443, 8080])
-        
-        # Explicit MACs to avoid ARP lookups/warnings
-        pkt = Ether(src="00:11:22:33:44:55", dst="ff:ff:ff:ff:ff:ff") / IP(src=src_ip, dst="192.168.1.20") / TCP(sport=src_port, dport=80) / ("X" * payload_size)
-        pkt.time = pkt_time
-        packets.append(pkt)
-        
-    wrpcap(filename, packets)
-    print("Done.")
-
-def generate_anomalous_traffic(filename="anomaly.pcap", duration=300):
-    """
-    Generates 'anomalous' traffic mixed with STRANGE (WARN) and CRIT patterns.
-    Ensures total duration is at least 60 seconds (or requested duration) to satisfy window requirements.
-    """
-    if duration < 60:
-        duration = 60 # Enforce minimum for detection
-        
-    print(f"Generating anomalous traffic to {filename} (minimum {duration}s)...")
+    print(f"Generating realistic NORMAL traffic to {filename} ({duration}s)...")
     packets = []
     start_time = time.time()
     current_time = start_time
     
-    cycle = 0
-    while (current_time - start_time) < duration:
-        cycle += 1
-        # 1. STRANGE Traffic (WARN)
-        # Behavior: Unusual IP, consistent but slightly higher rate, maybe unusual port
-        # Requirement: At least 20 packets total (we do this every cycle)
-        # print(f"Cycle {cycle}: Generatng STRANGE (WARN) traffic...")
-        strange_count = 15
-        for i in range(strange_count):
-            # Interval ~0.2s (5 packets/sec) - consistent
-            current_time += 0.2
-            
-            # Source: 192.168.1.77 (Unusual host)
-            # Port: 8888 (Uncommon)
-            pkt = Ether(src="00:11:22:33:44:77", dst="ff:ff:ff:ff:ff:ff") / \
-                  IP(src="192.168.1.77", dst="192.168.1.20") / \
-                  TCP(sport=8888, dport=80) / \
-                  ("S" * 200) # 'S' for Strange
-            pkt.time = current_time
-            packets.append(pkt)
-
-        # Gap between events
-        current_time += 2.0
-
-        # 2. CRIT Traffic
-        # Behavior: Attack-like burst from another IP
-        # Requirement: At least 20 packets total
-        # print(f"Cycle {cycle}: Generating CRIT traffic...")
-        crit_count = 20
-        for i in range(crit_count):
-            # High rate burst: 0.005s interval
-            current_time += 0.005
-            
-            # Source: 192.168.1.66 (Attacker)
-            # Port: 6666
-            pkt = Ether(src="00:aa:bb:cc:dd:ee", dst="ff:ff:ff:ff:ff:ff") / \
-                  IP(src="192.168.1.66", dst="192.168.1.20") / \
-                  TCP(sport=6666, dport=80) / \
-                  ("A" * 500) # 'A' for Attack
-            pkt.time = current_time
-            packets.append(pkt)
-            
-        # 3. Background / Quiet period
-        # Fill some time to extend duration significantly
-        gap = 5.0
-        current_time += gap
+    while current_time - start_time < duration:
+        # Simulate normal user browsing
+        # Choose a random user
+        user = random.choice(users)
         
-    # Fill remaining time with some background noise if needed
-    # (Optional, but keeps the file timeline realistic)
-    
+        # IP Rotation Chance (very low in normal)
+        if random.random() < 0.001: 
+            user.rotate_ip()
+            
+        # Requests come in small bursts (page load)
+        burst = random.randint(1, 5)
+        for _ in range(burst):
+            current_time += random.expovariate(2.0) # Avg 0.5s between resources
+            pkt = generate_packet(user, current_time)
+            packets.append(pkt)
+            
+        # Think time between pages
+        current_time += random.expovariate(0.1) # Avg 10s think time
+        
     wrpcap(filename, packets)
-    print(f"Done. Generated {len(packets)} packets over {current_time - start_time:.2f}s.")
+    print(f"Done. {len(packets)} packets.")
+
+def generate_anomalous_traffic(filename="anomaly.pcap", duration=300):
+    if duration < 60: duration = 60
+    print(f"Generating realistic ANOMALY mixed traffic to {filename} ({duration}s)...")
+    packets = []
+    start_time = time.time()
+    current_time = start_time
+    
+    # State tracking
+    anomaly_active = False
+    
+    while current_time - start_time < duration:
+        # 1. Background Normal Traffic (Always happening)
+        # ---------------------------------------------
+        if random.random() < 0.7:
+            user = random.choice(users)
+            current_time += random.uniform(0.01, 0.1) # Background hum
+            pkt = generate_packet(user, current_time)
+            packets.append(pkt)
+        
+        # 2. STRANGE Traffic (WARN) - Occasional
+        # ---------------------------------------------
+        # One of the "Normal" users acting weirdly (e.g., high rate for a moment)
+        # Bob decides to download rapidly?
+        if random.random() < 0.05: # 5% chance of strange event
+            target = users[1] # Bob
+            # print(f"STRANGE event by {target.name}")
+            for _ in range(random.randint(20, 40)):
+                current_time += 0.05
+                pkt = generate_packet(target, current_time, payload_mult=10) # Larger payload
+                packets.append(pkt)
+                
+        # 3. CRIT Traffic - Attackers
+        # ---------------------------------------------
+        if random.random() < 0.02: # 2% chance of attack burst
+            attacker = random.choice(attackers)
+            # print(f"CRIT Attack by {attacker.name}")
+            burst_len = random.randint(50, 150)
+            
+            # Attacker might rotate IP mid-attack
+            if random.random() < 0.3: attacker.rotate_ip()
+                
+            for _ in range(burst_len):
+                current_time += 0.005 # Fast spam
+                pkt = generate_packet(attacker, current_time, payload_mult=5)
+                packets.append(pkt)
+
+        # Advance time slightly if nothing happened to avoid stuck loop
+        current_time += 0.001
+
+    wrpcap(filename, packets)
+    print(f"Done. {len(packets)} packets over {current_time - start_time:.2f}s.")
 
 if __name__ == "__main__":
     if len(sys.argv) < 2:
         print("Usage: python traffic_gen.py [normal|anomaly] [duration_seconds]")
-        print("Default duration: 300s")
         sys.exit(1)
         
     mode = sys.argv[1]

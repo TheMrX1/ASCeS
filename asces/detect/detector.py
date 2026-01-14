@@ -20,7 +20,7 @@ class Detector:
         self.config = config
         self.last_alert_time: Dict[str, float] = {} # Key: "window:feature:method"
 
-    def check_window(self, window_size: int, features: Dict[str, float]):
+    def check_window(self, window_size: int, features: Dict[str, float], metadata: Dict[str, Any] = None):
         """
         Called when a window closes. Calculates H for recent history and compares to baseline.
         """
@@ -77,15 +77,18 @@ class Detector:
                 z_score = (current_h - mean_h) / std_h
                 
                 if abs(z_score) >= self.config.z_threshold:
-                    self._trigger_alert(window_size, feature_name, method, current_h, mean_h, std_h, z_score)
+                    self._trigger_alert(window_size, feature_name, method, current_h, mean_h, std_h, z_score, metadata)
                 else:
                     # Debug log to see values even if no alert
                     logger.info(f"CHECK: {feature_name} (W{window_size}) H={current_h:.3f} Avg={mean_h:.3f} Z={z_score:.2f}")
 
-    def _trigger_alert(self, window, feature, method, h, mean, std, z):
+    def _trigger_alert(self, window, feature, method, h, mean, std, z, metadata: Dict[str, Any] = None):
         key = f"{window}:{feature}:{method}"
+        # Use end_time from metadata if available, else current time
         now = time.time()
-        
+        if metadata and "end_time" in metadata:
+            now = metadata["end_time"]
+            
         # Cooldown check
         if key in self.last_alert_time:
             if now - self.last_alert_time[key] < self.config.cooldown_seconds:
@@ -102,7 +105,14 @@ class Detector:
         msg = f"Anomaly detected in {feature} (Window {window}s). H={h:.3f} (Baseline: {mean:.3f}±{std:.3f}), Z={z:.2f}"
         logger.warning(msg)
         
+        import json
+        meta_json = json.dumps(metadata) if metadata else ""
+        
+        from datetime import datetime
+        alert_time = datetime.fromtimestamp(now)
+        
         self.alert_repo.create_alert({
+            "timestamp": alert_time,
             "level": level,
             "window_size": window,
             "feature": feature,
@@ -111,5 +121,6 @@ class Detector:
             "baseline_mean": mean,
             "baseline_std": std,
             "z_score": z,
-            "message": msg
+            "message": msg,
+            "metadata_json": meta_json
         })

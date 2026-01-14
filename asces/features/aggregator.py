@@ -26,37 +26,53 @@ class WindowAggregator:
 
     def add_packet(self, packet: Packet, timestamp: float):
         """Add a packet and check if any windows have closed."""
-        results = [] # List of (window_size, feature_dict)
+        results = [] # List of (window_size, feature_dict, metadata_dict)
         
         for w in self.window_sizes:
             if self.window_starts[w] is None:
                 self.window_starts[w] = timestamp
-                # Debug log for first timestamp
-                # print(f"DEBUG: Window {w} initialized at {timestamp}")
 
             # If timestamp goes backward (restarts) or jumps too far, reset?
             # For now assume monotonic increasing timestamp from source.
             
             if timestamp - self.window_starts[w] >= w:
                 # Window closed
-                # Window closed
                 
                 features = FeatureExtractor.extract(self.current_buffers[w])
+                
+                # Metadata Extraction: Unique IPs, Cookies
+                meta = {
+                    "ips": list(set(p[1].src for p in self.current_buffers[w] if p.haslayer("IP"))),
+                    "cookies": [],
+                    "start_time": self.window_starts[w],
+                    "end_time": timestamp
+                }
+                
+                # Extract Cookies (Raw payload search)
+                # Very basic parsing for demo
+                seen_cookies = set()
+                for p in self.current_buffers[w]:
+                    if p.haslayer("Raw"):
+                        try:
+                            payload = p["Raw"].load.decode('utf-8', errors='ignore')
+                            if "Cookie: session=" in payload:
+                                # Extract simple value
+                                part = payload.split("Cookie: session=")[1].split("\r\n")[0]
+                                seen_cookies.add(part)
+                        except:
+                             pass
+                meta["cookies"] = list(seen_cookies)
+
                 self._update_history(w, features)
-                results.append((w, features))
+                results.append((w, features, meta))
                 
                 # Reset window
                 self.current_buffers[w] = []
-                # Align next window start to the end of previous window, or current packet time?
-                # Ideally: next_start = prev_start + w. 
-                # This keeps alignment.
                 self.window_starts[w] += w
                 
-                # Handle case where we skipped multiple windows (empty data)
+                # Check for skipped windows
                 while timestamp - self.window_starts[w] >= w:
-                     # Fill empty windows with zeros?
-                     # For now, just skip to current time to catch up
-                     self.window_starts[w] = timestamp
+                     self.window_starts[w] += w
             
             # Add packet to current buffer
             self.current_buffers[w].append(packet)

@@ -83,7 +83,6 @@
                             <th class="p-3">Feature</th>
                             <th class="p-3">Window</th>
                             <th class="p-3">Z-Score</th>
-                            <th class="p-3">Message</th>
                         </tr>
                     </thead>
                     <tbody class="divide-y divide-slate-700">
@@ -94,7 +93,8 @@
                             data-feature="{{ alert.feature }}" data-window="{{ alert.window_size }}"
                             data-zscore="{{ alert.z_score }}" data-message="{{ alert.message }}"
                             data-currenth="{{ alert.current_h }}" data-mean="{{ alert.baseline_mean }}"
-                            data-std="{{ alert.baseline_std }}" data-method="{{ alert.hurst_method }}">
+                            data-std="{{ alert.baseline_std }}" data-method="{{ alert.hurst_method }}"
+                            data-metadata="{{ alert.metadata_json }}">
                             <td class="p-3">{{ alert.timestamp.strftime('%Y-%m-%d %H:%M:%S') }}</td>
                             <td class="p-3">
                                 <span class="px-2 py-1 rounded text-xs font-bold
@@ -107,7 +107,6 @@
                             <td class="p-3">{{ alert.feature }}</td>
                             <td class="p-3">{{ alert.window_size }}s</td>
                             <td class="p-3">{{ "%.2f"|format(alert.z_score) }}</td>
-                            <td class="p-3 text-slate-400">{{ alert.message }}</td>
                         </tr>
                         {% endfor %}
                     </tbody>
