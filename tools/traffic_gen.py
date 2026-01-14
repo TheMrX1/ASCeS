@@ -79,54 +79,67 @@ def generate_normal_traffic(filename="normal.pcap", duration=300):
 def generate_anomalous_traffic(filename="anomaly.pcap", duration=300):
     if duration < 60: duration = 60
     print(f"Generating realistic ANOMALY mixed traffic to {filename} ({duration}s)...")
+    
+    # Anomaly Constraints
+    total_anomalies_target = random.randint(80, 157)
+    max_per_type = int(total_anomalies_target * (2/3))
+    
+    counts = {"WARN": 0, "CRIT": 0}
+    total_anomalies_generated = 0
+    
+    print(f"Targeting {total_anomalies_target} anomalies (Max {max_per_type} per type)...")
+
     packets = []
     start_time = time.time()
     current_time = start_time
     
-    # State tracking
-    anomaly_active = False
-    
     while current_time - start_time < duration:
+        # Stop anomalies if target reached
+        can_generate_anomaly = total_anomalies_generated < total_anomalies_target
+        
         # 1. Background Normal Traffic (Always happening)
-        # ---------------------------------------------
         if random.random() < 0.7:
             user = random.choice(users)
-            current_time += random.uniform(0.01, 0.1) # Background hum
+            current_time += random.uniform(0.05, 0.2) # Background hum
             pkt = generate_packet(user, current_time)
             packets.append(pkt)
         
-        # 2. STRANGE Traffic (WARN) - Occasional
-        # ---------------------------------------------
-        # One of the "Normal" users acting weirdly (e.g., high rate for a moment)
-        # Bob decides to download rapidly?
-        if random.random() < 0.05: # 5% chance of strange event
-            target = users[1] # Bob
-            # print(f"STRANGE event by {target.name}")
-            for _ in range(random.randint(20, 40)):
-                current_time += 0.05
-                pkt = generate_packet(target, current_time, payload_mult=10) # Larger payload
-                packets.append(pkt)
-                
-        # 3. CRIT Traffic - Attackers
-        # ---------------------------------------------
-        if random.random() < 0.02: # 2% chance of attack burst
-            attacker = random.choice(attackers)
-            # print(f"CRIT Attack by {attacker.name}")
-            burst_len = random.randint(50, 150)
+        # Determine Anomaly Opportunity
+        if can_generate_anomaly:
+            r = random.random()
             
-            # Attacker might rotate IP mid-attack
-            if random.random() < 0.3: attacker.rotate_ip()
+            # STRANGE Traffic (WARN)
+            if r < 0.05 and counts["WARN"] < max_per_type:
+                target = users[1] # Bob
+                # Burst
+                for _ in range(random.randint(20, 40)):
+                    current_time += 0.05
+                    pkt = generate_packet(target, current_time, payload_mult=10)
+                    packets.append(pkt)
                 
-            for _ in range(burst_len):
-                current_time += 0.005 # Fast spam
-                pkt = generate_packet(attacker, current_time, payload_mult=5)
-                packets.append(pkt)
+                counts["WARN"] += 1
+                total_anomalies_generated += 1
+                
+            # CRIT Traffic - Attackers
+            elif r > 0.98 and counts["CRIT"] < max_per_type:
+                attacker = random.choice(attackers)
+                burst_len = random.randint(50, 150)
+                
+                if random.random() < 0.3: attacker.rotate_ip()
+                    
+                for _ in range(burst_len):
+                    current_time += 0.005 # Fast spam
+                    pkt = generate_packet(attacker, current_time, payload_mult=5)
+                    packets.append(pkt)
+                    
+                counts["CRIT"] += 1
+                total_anomalies_generated += 1
 
-        # Advance time slightly if nothing happened to avoid stuck loop
+        # Advance time slightly if nothing happened
         current_time += 0.001
 
     wrpcap(filename, packets)
-    print(f"Done. {len(packets)} packets over {current_time - start_time:.2f}s.")
+    print(f"Done. {len(packets)} packets. Anomalies: {total_anomalies_generated} (WARN: {counts['WARN']}, CRIT: {counts['CRIT']})")
 
 if __name__ == "__main__":
     if len(sys.argv) < 2:
