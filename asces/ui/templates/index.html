@@ -87,6 +87,7 @@
                         <tr>
                             <th class="p-3">Time</th>
                             <th class="p-3">Level</th>
+                            <th class="p-3">Assessment</th> <!-- New Column -->
                             <th class="p-3">Feature</th>
                             <th class="p-3">Window</th>
                             <th class="p-3">Z-Score</th>
@@ -110,6 +111,9 @@
                                 {% else %}bg-blue-900 text-blue-200{% endif %}">
                                     {{ alert.level }}
                                 </span>
+                            </td>
+                            <td class="p-3 text-slate-300 font-medium text-xs">
+                                {{ alert.assessment or "Analyzing..." }}
                             </td>
                             <td class="p-3">{{ alert.feature }}</td>
                             <td class="p-3">{{ alert.window_size }}s</td>
