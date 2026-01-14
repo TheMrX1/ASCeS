@@ -152,69 +152,88 @@ def generate_anomalous_traffic(filename="anomaly.pcap", duration=3600):
             warn_timestamps.append(ts)
     warn_timestamps.sort()
 
-    # Bob's Location State
-    next_move_time = current_time + random.randint(600, 900)
-    locations = ["Cafe", "Theater", "Park", "Friend's House"]
+    # Sort packets by time (since we injected attacks slightly out of order/parallel)
     
-    # Counters
-    generated_warns = 0
-    generated_crits = 0
+    # NEW LOGIC: Event Queue Processing
+    # We pre-calculate ALL timestamps where an event MUST happen.
+    # 1. Background Bob: every 0.5s approx
+    # 2. WARN Events: Fixed timestamps
+    # 3. CRIT Events: Distributed inside Attack Windows
     
-    # Main Loop (Event Driver)
-    # We iterate by "Next Event Time" to ensure we hit counts, rather than a fixed time step
+    event_queue = [] # (timestamp, type, data)
     
-    # Merged timeline of "Warn Events" and "Attack Start/End"
-    # But strictly speaking we just loop time tiny increments or jump?
-    # Let's slide time.
-    
-    check_warn_idx = 0
-    
-    while current_time < end_time:
-        # A. Bob's Normal Life (Background Noise)
-        if current_time > next_move_time:
-            bob.rotate_ip(random.choice(locations))
-            next_move_time = current_time + random.randint(600, 900)
+    # A. Bob's Normal Background (Entire Duration)
+    t = start_time
+    while t < end_time:
+       t += random.uniform(0.3, 0.7)
+       if t < end_time:
+           event_queue.append((t, "NORMAL_BOB", None))
+           
+    # B. WARN Events
+    for w_ts in warn_timestamps:
+        event_queue.append((w_ts, "WARN", None))
         
-        # Normal Traffic (Always happening)
-        burst = random.randint(3, 8)
-        for _ in range(burst):
-            current_time += random.uniform(0.1, 0.5)
-            pkt = generate_packet(bob, current_time)
-            packets.append(pkt)
+    # C. CRIT Events (Strict Allocation)
+    for aw in attack_windows:
+        allocated = aw["events_allocated"]
+        # Distribute these N events randomly within the window
+        for _ in range(allocated):
+            # Pick a time inside the window
+            # Ensure we don't pick exact same float to avoid sort stability issues, though unlikely
+            c_ts = random.uniform(aw["start"], aw["end"])
+            event_queue.append((c_ts, "CRIT", aw))
             
-        # B. Check for WARN Event (Strange Bob)
-        # If we passed a scheduled warn timestamp
-        if check_warn_idx < len(warn_timestamps) and current_time >= warn_timestamps[check_warn_idx]:
-             # Execute WARN (High Latency/Strange Payload by Bob)
-             # INCREASED INTENSITY: Burst 40-60 packets (was 15-25) to ensure Z-score spike
-             warn_burst = random.randint(40, 60)
-             for _ in range(warn_burst):
-                 current_time += 0.02 # Faster than normal
-                 pkt = generate_packet(bob, current_time, payload_mult=3)
-                 packets.append(pkt)
-             generated_warns += 1
-             check_warn_idx += 1
-             
-        # C. Check for CRIT Event (Hacker inside Window)
-        for aw in attack_windows:
-            if aw["start"] <= current_time <= aw["end"]:
-                if aw["events_allocated"] > 0:
-                     if random.random() < 0.3:
-                         # Execute CRIT Event (Hacker Burst)
-                         # INCREASED INTENSITY: Burst 80-150 packets (was 10-30) for DDoS/Hijacking
-                         crit_burst = random.randint(80, 150)
-                         hacker_prof = UserProfile("Hacker", aw["ip"], aw["cookie"])
-                         
-                         for _ in range(crit_burst):
-                             current_time += 0.005 # Very Fast (DDoS speeds)
-                             pkt = generate_packet(hacker_prof, current_time)
-                             packets.append(pkt)
-                             
-                         aw["events_allocated"] -= 1
-                         generated_crits += 1
-
-        # Time Passage
-        current_time += random.uniform(2, 5)
+    # D. Bob IP Rotation
+    # Schedule moves
+    move_t = start_time + random.randint(600, 900)
+    while move_t < end_time:
+        event_queue.append((move_t, "MOVE", None))
+        move_t += random.randint(600, 900)
+        
+    # Sort Queue by Time
+    event_queue.sort(key=lambda x: x[0])
+    
+    # Process Queue
+    print(f"Processing {len(event_queue)} scheduled events...")
+    
+    # Ensure Bob starts with a random IP to avoid "Static IP" look if user runs script multiple times
+    bob.rotate_ip("Initial Randomization")
+    
+    for ts, etype, data in event_queue:
+        current_time = ts
+        
+        if etype == "MOVE":
+            bob.rotate_ip(random.choice(locations))
+            
+        elif etype == "NORMAL_BOB":
+            burst = random.randint(2, 5)
+            for _ in range(burst):
+                # Micro-burst around this timestamp
+                pkt_t = ts + random.uniform(0, 0.1)
+                pkt = generate_packet(bob, pkt_t)
+                packets.append(pkt)
+                
+        elif etype == "WARN":
+            generated_warns += 1
+            # Bob behaving badly
+            burst = random.randint(40, 60)
+            for _ in range(burst):
+                pkt_t = ts + random.uniform(0, 0.5) # Spread over 0.5s
+                pkt = generate_packet(bob, pkt_t, payload_mult=3)
+                packets.append(pkt)
+                
+        elif etype == "CRIT":
+            generated_crits += 1
+            # Hacker Attack Burst
+            aw = data
+            burst = random.randint(80, 150)
+            hacker_prof = UserProfile("Hacker", aw["ip"], aw["cookie"])
+            
+            for _ in range(burst):
+                # Super fast burst (DDoS style)
+                pkt_t = ts + random.uniform(0, 0.05) 
+                pkt = generate_packet(hacker_prof, pkt_t)
+                packets.append(pkt)
 
     packets.sort(key=lambda x: x.time)
     
