@@ -82,96 +82,150 @@ def generate_anomalous_traffic(filename="anomaly.pcap", duration=3600):
     # Ensure min duration for scenario logic
     if duration < 2400: duration = 2400 # Min 40 mins
     
+    # -------------------------------------------------------------
+    # 1. Target Calculations (Strict Limits)
+    # Total events: 150 - 200
+    # Crit: 1/4 (25%) to 1/3 (33.3%) of Total
+    # Warn: The rest
+    # -------------------------------------------------------------
+    total_events = random.randint(150, 200)
+    crit_ratio = random.uniform(0.25, 0.33)
+    target_crits = int(total_events * crit_ratio)
+    target_warns = total_events - target_crits
+    
     print(f"Generating ANOMALY traffic (Bob + Hacker) to {filename} ({duration}s)...")
-    print(f"Generating ANOMALY traffic (Bob + Hacker) to {filename} ({duration}s)...")
+    print(f"Targets: Total={total_events}, CRIT={target_crits}, WARN={target_warns}")
+
     packets = []
     # Virtual Time
     start_time = time.time()
     current_time = start_time
     end_time = start_time + duration
     
-    # 1. Schedule Attacks
-    # 3-4 attacks total
-    num_attacks = random.randint(3, 4)
-    # Distribute them within the duration (avoiding first/last 5 mins)
+    # -------------------------------------------------------------
+    # 2. Schedule "Attack Windows" (For CRIT events)
+    # -------------------------------------------------------------
+    num_attacks = 3 # Fixed 3 distinct attacks windows to hold the CRITs
     valid_window_start = start_time + 300
     valid_window_end = end_time - 300
     
     attack_starts = sorted([random.uniform(valid_window_start, valid_window_end) for _ in range(num_attacks)])
-    attacks = []
-    types = ["DDoS", "SessionHijacking", "DDoS"] # Weighted mix
+    attack_windows = []
+    types = ["DDoS", "SessionHijacking", "DDoS"] 
     
-    for start in attack_starts:
-        a_type = random.choice(types)
-        # Attack lasts 2-3 minutes
-        a_duration = random.randint(120, 180) 
-        attacks.append({
+    # We need to squeeze 'target_crits' events into these 3 windows
+    crits_per_window = target_crits // num_attacks
+    
+    for i, start in enumerate(attack_starts):
+        a_type = types[i % len(types)]
+        a_duration = 180 # 3 minutes fixed
+        
+        # Cookie logic: Hijacker gets Bob's cookie, DDoS gets generic hacker cookie
+        hacker_cookie = "hacker_token_666"
+        if a_type == "SessionHijacking":
+            hacker_cookie = bob.cookies # STEAL!
+            
+        attack_windows.append({
             "start": start,
             "end": start + a_duration,
             "type": a_type,
-            "ip": f"10.66.6.{random.randint(10, 200)}" # Hacker IP
+            "ip": f"10.66.6.{random.randint(10, 200)}",
+            "cookie": hacker_cookie,
+            "events_allocated": crits_per_window if i < num_attacks-1 else (target_crits - (crits_per_window * (num_attacks-1)))
         })
-        print(f"  -> Scheduled {a_type} at T+{int(start-start_time)}s (Duration {a_duration}s) from {attacks[-1]['ip']}")
+        print(f"  -> Scheduled {a_type} at T+{int(start-start_time)}s ({attack_windows[-1]['events_allocated']} events allocated)")
 
-    # Bob's Schedule
+    # -------------------------------------------------------------
+    # 3. Schedule "Background WARNs" (Strange Bob behavior)
+    # -------------------------------------------------------------
+    # WARNs happen randomly throughout the session, but NOT during attacks to keep signals clear
+    warn_timestamps = []
+    while len(warn_timestamps) < target_warns:
+        ts = start_time + random.uniform(0, duration)
+        # Check collision with attacks
+        in_attack = False
+        for aw in attack_windows:
+            if aw["start"] <= ts <= aw["end"]:
+                in_attack = True
+                break
+        if not in_attack:
+            warn_timestamps.append(ts)
+    warn_timestamps.sort()
+
+    # Bob's Location State
     next_move_time = current_time + random.randint(600, 900)
     locations = ["Cafe", "Theater", "Park", "Friend's House"]
-
-    # Hacker State
-    active_attacks = []
-
+    
+    # Counters
+    generated_warns = 0
+    generated_crits = 0
+    
+    # Main Loop (Event Driver)
+    # We iterate by "Next Event Time" to ensure we hit counts, rather than a fixed time step
+    
+    # Merged timeline of "Warn Events" and "Attack Start/End"
+    # But strictly speaking we just loop time tiny increments or jump?
+    # Let's slide time.
+    
+    check_warn_idx = 0
+    
     while current_time < end_time:
-        # A. Bob's Normal Life (Background)
+        # A. Bob's Normal Life (Background Noise)
         if current_time > next_move_time:
             bob.rotate_ip(random.choice(locations))
             next_move_time = current_time + random.randint(600, 900)
         
-        # Bob browsing
-        burst = random.randint(3, 12)
+        # Normal Traffic (Always happening)
+        burst = random.randint(3, 8)
         for _ in range(burst):
-            current_time += random.uniform(0.1, 0.8)
+            current_time += random.uniform(0.1, 0.5)
             pkt = generate_packet(bob, current_time)
             packets.append(pkt)
-        
-        # B. Hacker Intervention
-        # Check if we are in any attack window
-        for attack in attacks:
-            if attack["start"] <= current_time <= attack["end"]:
-                # Execute Attack Logic
-                
-                if attack["type"] == "DDoS":
-                    # High Rate Check
-                    # Generate many packets in this small time slice
-                    # DDoS: ~50-100 packets per second logic, but integrated into this loop
-                    # We inject a burst right now
-                    ddos_burst = random.randint(10, 20)
-                    for _ in range(ddos_burst):
-                        # Slight time increment for ddos packets
-                        pkttime = current_time + random.uniform(0.001, 0.05)
-                        # Hacker Profile (Dynamic)
-                        hacker_prof = UserProfile("Hacker", attack["ip"], "none") 
-                        pkt = generate_packet(hacker_prof, pkttime, payload_mult=5)
-                        packets.append(pkt)
-                        
-                elif attack["type"] == "SessionHijacking":
-                    # Hijacking: Hacker IP uses BOB'S Cookie
-                    # Moderate rate, looking like normal usage but from wrong IP
-                    hijack_burst = random.randint(2, 5)
-                    for _ in range(hijack_burst):
-                        pkttime = current_time + random.uniform(0.1, 0.5)
-                        hacker_prof = UserProfile("Hacker", attack["ip"], bob.cookies) # Stolen Cookie!
-                        pkt = generate_packet(hacker_prof, pkttime)
-                        packets.append(pkt)
+            
+        # B. Check for WARN Event (Strange Bob)
+        # If we passed a scheduled warn timestamp
+        if check_warn_idx < len(warn_timestamps) and current_time >= warn_timestamps[check_warn_idx]:
+             # Execute WARN (High Latency/Strange Payload by Bob)
+             # This is ONE event
+             warn_burst = random.randint(15, 25)
+             for _ in range(warn_burst):
+                 current_time += 0.05
+                 pkt = generate_packet(bob, current_time, payload_mult=3)
+                 packets.append(pkt)
+             generated_warns += 1
+             check_warn_idx += 1
+             
+        # C. Check for CRIT Event (Hacker inside Window)
+        for aw in attack_windows:
+            if aw["start"] <= current_time <= aw["end"]:
+                # We are in an attack window. 
+                # We need to consume 'events_allocated' evenly over the duration of the window
+                # Event Rate = allocated / duration
+                # Probability check?
+                if aw["events_allocated"] > 0:
+                     # Simple heuristic: try to space them out?
+                     # Or just bias random?
+                     if random.random() < 0.3:
+                         # Execute CRIT Event (Hacker Burst)
+                         # High Rate
+                         crit_burst = random.randint(10, 30)
+                         hacker_prof = UserProfile("Hacker", aw["ip"], aw["cookie"])
+                         
+                         for _ in range(crit_burst):
+                             current_time += 0.01 # Fast
+                             pkt = generate_packet(hacker_prof, current_time)
+                             packets.append(pkt)
+                             
+                         aw["events_allocated"] -= 1
+                         generated_crits += 1
 
-        # C. Time Passage
-        # Normal reading time
-        current_time += random.uniform(3, 15)
+        # Time Passage
+        current_time += random.uniform(2, 5)
 
-    # Sort packets by time (since we injected attacks slightly out of order/parallel)
     packets.sort(key=lambda x: x.time)
     
     wrpcap(filename, packets)
-    print(f"Done. {len(packets)} packets. Generated {num_attacks} attacks.")
+    print(f"Done. {len(packets)} packets. Generated: WARN={generated_warns}, CRIT={generated_crits}")
 
 if __name__ == "__main__":
     if len(sys.argv) < 2:
