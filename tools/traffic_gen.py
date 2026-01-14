@@ -38,47 +38,57 @@ def generate_normal_traffic(filename="normal.pcap", duration=300):
 
 def generate_anomalous_traffic(filename="anomaly.pcap", duration=300):
     """
-    Generates 'anomalous' traffic with high self-similarity (Pareto ON/OFF).
+    Generates 'anomalous' traffic mixed with STRANGE (WARN) and CRIT patterns.
     """
-    # Rate: 20 pkts/sec avg
-    count = duration * 20
-    print(f"Generating ~{count} anomalous packets to {filename} ({duration}s)...")
+    print(f"Generating anomalous traffic to {filename}...")
     packets = []
     start_time = time.time()
-    
-    # Pareto ON/OFF model logic simplified for packet stream
-    # Bursts of packets followed by silence
-    
     current_time = start_time
-    packets_generated = 0
     
-    while packets_generated < count:
-        # ON period: burst of packets
-        # Pareto shape 1.2 -> Heavy tailed
-        burst_size = int(random.paretovariate(1.2) * 10)
-        burst_size = max(5, min(burst_size, 500))
+    # 1. STRANGE Traffic (WARN)
+    # Behavior: Unusual IP, consistent but slightly higher rate, maybe unusual port
+    # Requirement: At least 20 packets
+    print("Generating STRANGE (WARN) traffic...")
+    strange_count = 25
+    for i in range(strange_count):
+        # Interval ~0.2s (5 packets/sec) - consistent
+        current_time += 0.2
         
-        for _ in range(burst_size):
-            payload_size = 500 # Constant size often seen in attacks or large transfers
-            
-            # Very short interval in burst
-            current_time += 0.002 
-            
-            pkt = Ether(src="00:aa:bb:cc:dd:ee", dst="ff:ff:ff:ff:ff:ff") / IP(src="192.168.1.66", dst="192.168.1.20") / TCP(sport=6666, dport=80) / ("A" * payload_size)
-            pkt.time = current_time
-            packets.append(pkt)
-            packets_generated += 1
-            
-            if packets_generated >= count:
-                break
-        
-        # OFF period
-        # Pareto again for silence
-        silence = random.paretovariate(1.2) * 0.1
-        current_time += silence
+        # Source: 192.168.1.77 (Unusual host)
+        # Port: 8888 (Uncommon)
+        pkt = Ether(src="00:11:22:33:44:77", dst="ff:ff:ff:ff:ff:ff") / \
+              IP(src="192.168.1.77", dst="192.168.1.20") / \
+              TCP(sport=8888, dport=80) / \
+              ("S" * 200) # 'S' for Strange
+        pkt.time = current_time
+        packets.append(pkt)
 
+    # Gap between events
+    current_time += 2.0
+
+    # 2. CRIT Traffic
+    # Behavior: Attack-like burst from another IP
+    # Requirement: At least 20 packets
+    print("Generating CRIT traffic...")
+    crit_count = 30
+    for i in range(crit_count):
+        # High rate burst: 0.005s interval
+        current_time += 0.005
+        
+        # Source: 192.168.1.66 (Attacker)
+        # Port: 6666
+        pkt = Ether(src="00:aa:bb:cc:dd:ee", dst="ff:ff:ff:ff:ff:ff") / \
+              IP(src="192.168.1.66", dst="192.168.1.20") / \
+              TCP(sport=6666, dport=80) / \
+              ("A" * 500) # 'A' for Attack
+        pkt.time = current_time
+        packets.append(pkt)
+        
+    # Fill remaining time with some background noise if needed
+    # (Optional, but keeps the file timeline realistic)
+    
     wrpcap(filename, packets)
-    print("Done.")
+    print(f"Done. Generated {len(packets)} packets.")
 
 if __name__ == "__main__":
     if len(sys.argv) < 2:
