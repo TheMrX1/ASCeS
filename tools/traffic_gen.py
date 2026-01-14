@@ -160,6 +160,9 @@ def generate_anomalous_traffic(filename="anomaly.pcap", duration=3600):
     # 2. WARN Events: Fixed timestamps
     # 3. CRIT Events: Distributed inside Attack Windows
     
+    generated_warns = 0
+    generated_crits = 0
+    
     event_queue = [] # (timestamp, type, data)
     
     # A. Bob's Normal Background (Entire Duration)
